@@ -8,7 +8,12 @@ class HealthKitManager {
     func requestAuthorization() {
         // 歩数（stepCount）データを「読み取る」権限のみをリクエスト
         // 読み書きするデータ型を設定
-        let readTypes: Set = [HKObjectType.quantityType(forIdentifier: .stepCount)!]
+        guard let stepCountType = HKObjectType.quantityType(forIdentifier: .stepCount) else {
+            print("Step count type is unavailable on this device")
+            return
+        }
+
+        let readTypes: Set = [stepCountType]
         healthStore.requestAuthorization(toShare: [], read: readTypes) { success, error in
             // 認可後の処理
         }

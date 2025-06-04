@@ -25,7 +25,7 @@ struct MentalHealthTrackApp: App {
                     // 通知権限の要求
                     NotificationManager.shared.requestPermission()
                     // HealthKit権限の要求
-                    HealthKitManager().requestAuthorization()
+                    HealthKitManager.shared.requestAuthorization()
                 }
         }
     }
