@@ -18,6 +18,10 @@ struct ContentView: View {
     var body: some View {
         NavigationView {
             VStack {
+                // スクリーンタイム円グラフ
+                ScreenTimeCardView()
+                    .padding(.horizontal)
+                
                 // 統計情報カード
                 StatisticsCardView(
                     todayCount: todayEntriesCount(),
