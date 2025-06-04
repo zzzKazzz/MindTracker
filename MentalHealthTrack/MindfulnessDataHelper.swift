@@ -76,4 +76,4 @@ struct MindfulnessDataHelper {
     static func sortedEntries(_ entries: [MindfulnessData]) -> [MindfulnessData] {
         return entries.sorted { ($0.timestamp ?? Date()) > ($1.timestamp ?? Date()) }
     }
-}NotificationManager
+}
