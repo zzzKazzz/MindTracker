@@ -166,7 +166,7 @@ struct DateEntryCardView: View {
                     .font(.title)
                 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(DateFormatters.time.string(from: entry.timestamp ?? Date()))
+                    Text(DateFormatters.timeOnly.string(from: entry.timestamp ?? Date()))
                         .font(.headline)
                         .fontWeight(.semibold)
                     
