@@ -17,6 +17,7 @@ struct ContentView: View {
     
     @State private var showingEntryView = false
     @State private var showingSettings = false
+    @State private var showingAIAnalysis = false
     
     var body: some View {
         NavigationView {
@@ -125,6 +126,13 @@ struct ContentView: View {
             .toolbar {
                 ToolbarItemGroup(placement: .navigationBarTrailing) {
                     Button(action: {
+                        showingAIAnalysis = true
+                    }) {
+                        Image(systemName: "sparkles")
+                            .font(.title2)
+                    }
+
+                    Button(action: {
                         showingSettings = true
                     }) {
                         Image(systemName: "line.horizontal.3")
@@ -139,6 +147,10 @@ struct ContentView: View {
         }
         .sheet(isPresented: $showingEntryView) {
             MindfulnessEntryView()
+                .environment(\.managedObjectContext, viewContext)
+        }
+        .sheet(isPresented: $showingAIAnalysis) {
+            AIAnalysisView()
                 .environment(\.managedObjectContext, viewContext)
         }
         .sheet(isPresented: $showingSettings) {
