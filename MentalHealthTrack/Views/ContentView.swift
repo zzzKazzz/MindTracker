@@ -13,6 +13,7 @@ struct ContentView: View {
     @State private var showingCalendar = false
     @State private var selectedDate: Date? = nil
     @State private var showingDateEntries = false
+    @State private var showingAIAnalysis = false
     
     var body: some View {
         NavigationView {
@@ -47,6 +48,11 @@ struct ContentView: View {
                 }
                 
                 ToolbarItemGroup(placement: .navigationBarTrailing) {
+                    Button(action: { showingAIAnalysis = true }) {
+                        Image(systemName: "brain.head.profile")
+                            .font(.title2)
+                    }
+
                     Button(action: { showingSettings = true }) {
                         Image(systemName: "line.horizontal.3")
                             .font(.title2)
@@ -79,6 +85,10 @@ struct ContentView: View {
                     entries: entriesForDate(selectedDate)
                 )
             }
+        }
+        .sheet(isPresented: $showingAIAnalysis) {
+            AIAnalysisView()
+                .environment(\.managedObjectContext, viewContext)
         }
     }
     
