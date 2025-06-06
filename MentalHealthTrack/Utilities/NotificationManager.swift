@@ -1,4 +1,3 @@
-// NotificationManager.swift
 import Foundation
 import UserNotifications
 import SwiftUI
@@ -194,6 +193,37 @@ class NotificationManager: ObservableObject {
                 print("テスト通知エラー: \(error)")
             } else {
                 print("テスト通知が\(Int(seconds))秒後にスケジュールされました")
+            }
+        }
+    }
+}
+
+// 5. 通知作成時のデバッグログも追加
+// NotificationManager.swift（または通知作成部分）に以下を追加：
+
+extension NotificationManager {
+    func scheduleDebugNotification() {
+        print("🔔 デバッグ通知をスケジュール中...")
+        
+        let content = UNMutableNotificationContent()
+        content.title = "デバッグ通知"
+        content.body = "通知タップのテストです"
+        content.sound = .default
+        content.badge = 1
+        
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 10, repeats: false)
+        let request = UNNotificationRequest(
+            identifier: "debugNotification_\(Date().timeIntervalSince1970)",
+            content: content,
+            trigger: trigger
+        )
+        
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                print("❌ デバッグ通知エラー: \(error)")
+            } else {
+                print("✅ デバッグ通知が10秒後にスケジュールされました")
+                print("🔔 通知識別子: \(request.identifier)")
             }
         }
     }

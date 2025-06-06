@@ -80,11 +80,16 @@ struct ContentView: View {
             }
         }
         // 通知タップで記録画面を開く処理
-        .onChange(of: appState.shouldShowEntryView) { shouldShow in
-            if shouldShow {
-                showingEntryView = true
+        .onChange(of: appState.shouldShowEntryView) { oldValue, newValue in
+            print("🎯 shouldShowEntryView変更検出: \(oldValue) -> \(newValue)")
+            if newValue {
+                print("🎯 記録画面を表示します")
+                showingEntryView = true     
                 // フラグをリセット
-                appState.shouldShowEntryView = false
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    print("🎯 shouldShowEntryViewをfalseにリセット")
+                    appState.shouldShowEntryView = false
+                }
             }
         }
         .sheet(isPresented: $showingEntryView) {
@@ -111,10 +116,6 @@ struct ContentView: View {
         }
         .sheet(isPresented: $showingAIAnalysis) {
             AIAnalysisView()
-                .environment(\.managedObjectContext, viewContext)
-        }
-        .sheet(isPresented: $appState.shouldShowEntryView) {
-            MindfulnessEntryView()
                 .environment(\.managedObjectContext, viewContext)
         }
     }
@@ -450,5 +451,31 @@ struct ContentView_Previews: PreviewProvider {
         ContentView()
             .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
             .environmentObject(AppState())
+    }
+}
+
+// 6. 通知権限確認用の関数も追加
+extension ContentView {
+    private func debugNotificationSettings() {
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+            DispatchQueue.main.async {
+                print("🔔 === 通知設定デバッグ情報 ===")
+                print("🔔 認証状態: \(settings.authorizationStatus.rawValue)")
+                print("🔔 アラート設定: \(settings.alertSetting.rawValue)")
+                print("🔔 サウンド設定: \(settings.soundSetting.rawValue)")
+                print("🔔 バッジ設定: \(settings.badgeSetting.rawValue)")
+                print("🔔 通知センター設定: \(settings.notificationCenterSetting.rawValue)")
+                print("🔔 ロック画面設定: \(settings.lockScreenSetting.rawValue)")
+                print("🔔 ===========================")
+            }
+        }
+        // 保留中の通知も確認
+        UNUserNotificationCenter.current().getPendingNotificationRequests { requests in
+            print("🔔 保留中の通知数: \(requests.count)")
+            for request in requests {
+                print("🔔 通知ID: \(request.identifier)")
+                print("🔔 タイトル: \(request.content.title)")
+            }
+        }
     }
 }
