@@ -2,126 +2,72 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>CFBundleDevelopmentRegion</key>
-    <string>$(DEVELOPMENT_LANGUAGE)</string>
-    <key>CFBundleExecutable</key>
-    <string>$(EXECUTABLE_NAME)</string>
-    <key>CFBundleIdentifier</key>
-    <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
-    <key>CFBundleInfoDictionaryVersion</key>
-    <string>6.0</string>
-    <key>CFBundleName</key>
-    <string>$(PRODUCT_NAME)</string>
-    <key>CFBundlePackageType</key>
-    <string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
-    <key>CFBundleShortVersionString</key>
-    <string>1.0</string>
-    <key>CFBundleVersion</key>
-    <string>1</string>
-    <key>LSRequiresIPhoneOS</key>
-    <true/>
-    <key>UIApplicationSceneManifest</key>
-    <dict>
-        <key>UIApplicationSupportsMultipleScenes</key>
-        <false/>
-        <key>UISceneConfigurations</key>
-        <dict>
-            <key>UIWindowSceneSessionRoleApplication</key>
-            <array>
-                <dict>
-                    <key>UISceneConfigurationName</key>
-                    <string>Default Configuration</string>
-                    <key>UISceneDelegateClassName</key>
-                    <string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>
-                </dict>
-            </array>
-        </dict>
-    </dict>
-    <key>UIApplicationSupportsIndirectInputEvents</key>
-    <true/>
-    <key>UILaunchScreen</key>
-    <dict/>
-    <key>UIRequiredDeviceCapabilities</key>
-    <array>
-        <string>armv7</string>
-    </array>
-    <key>UISupportedInterfaceOrientations</key>
-    <array>
-        <string>UIInterfaceOrientationPortrait</string>
-        <string>UIInterfaceOrientationLandscapeLeft</string>
-        <string>UIInterfaceOrientationLandscapeRight</string>
-    </array>
-    <key>UISupportedInterfaceOrientations~ipad</key>
-    <array>
-        <string>UIInterfaceOrientationPortrait</string>
-        <string>UIInterfaceOrientationPortraitUpsideDown</string>
-        <string>UIInterfaceOrientationLandscapeLeft</string>
-        <string>UIInterfaceOrientationLandscapeRight</string>
-    </array>
-    
-    <!-- 権限関連の設定 -->
-    
-    <key>NSUserNotificationUsageDescription</key>
-    <string>定期的な心の健康チェックのために通知を使用します</string>
-    
-    <!-- HealthKit権限 -->
-    <key>NSHealthShareUsageDescription</key>
-    <string>歩数、心拍数、睡眠データを読み取り、あなたの健康状態と気分の関連性を分析します。</string>
-    <key>NSHealthUpdateUsageDescription</key>
-    <string>健康データを更新して、より正確な分析を提供します。</string>
-    
-    <!-- 通知権限 -->
-    <key>NSUserNotificationsUsageDescription</key>
-    <string>定期的に気分や活動を記録するためのリマインダー通知を送信します。</string>
-    
-    <!-- DeviceActivity（Screen Time）権限 -->
-    <key>NSDeviceActivityUsageDescription</key>
-    <string>スマートフォンの使用パターンを分析し、デジタルウェルビーイングの向上に役立てます。</string>
-    
-    <!-- FamilyControls権限（Screen Time API用） -->
-    <key>NSFamilyControlsUsageDescription</key>
-    <string>アプリ使用時間のデータを取得し、生活習慣の分析に使用します。</string>
-    
-    <!-- バックグラウンド実行権限 -->
-    <key>UIBackgroundModes</key>
-    <array>
-        <string>background-processing</string>
-        <string>background-fetch</string>
-    </array>
-    
-    <!-- アプリケーション設定 -->
-    <key>UIApplicationShortcutItems</key>
-    <array>
-        <dict>
-            <key>UIApplicationShortcutItemType</key>
-            <string>com.mentalhealth.quickentry</string>
-            <key>UIApplicationShortcutItemTitle</key>
-            <string>クイック記録</string>
-            <key>UIApplicationShortcutItemSubtitle</key>
-            <string>今の気分を素早く記録</string>
-            <key>UIApplicationShortcutItemIconType</key>
-            <string>UIApplicationShortcutIconTypeAdd</string>
-        </dict>
-    </array>
-    
-    <!-- ローカライゼーション -->
-    <key>CFBundleLocalizations</key>
-    <array>
-        <string>en</string>
-        <string>ja</string>
-    </array>
-    
-    <!-- アプリ内購入やプライバシー関連 -->
-    <key>NSPrivacyAccessedAPITypes</key>
-    <array>
-        <dict>
-            <key>NSPrivacyAccessedAPIType</key>
-            <string>NSPrivacyAccessedAPICategoryUserDefaults</string>
-            <key>NSPrivacyAccessedAPITypeReasons</key>
-            <array>
-                <string>CA92.1</string>
-            </array>
-        </dict>
-    </array>
+	<key>CFBundleIconName</key>
+	<string>AppIcon</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>en</string>
+		<string>ja</string>
+	</array>
+	<key>LSMinimumSystemVersion</key>
+	<string>14.0</string>
+	<key>NSDeviceActivityUsageDescription</key>
+	<string>スマートフォンの使用パターンを分析し、デジタルウェルビーイングの向上に役立てます。</string>
+	<key>NSFamilyControlsUsageDescription</key>
+	<string>アプリ使用時間のデータを取得し、生活習慣の分析に使用します。</string>
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>CA92.1</string>
+			</array>
+		</dict>
+	</array>
+	<key>NSUserNotificationUsageDescription</key>
+	<string>定期的な心の健康チェックのために通知を使用します</string>
+	<key>NSUserNotificationsUsageDescription</key>
+	<string>定期的に気分や活動を記録するためのリマインダー通知を送信します。</string>
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<false/>
+		<key>UISceneConfigurations</key>
+		<dict>
+			<key>UIWindowSceneSessionRoleApplication</key>
+			<array>
+				<dict>
+					<key>UISceneConfigurationName</key>
+					<string>Default Configuration</string>
+					<key>UISceneDelegateClassName</key>
+					<string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>
+				</dict>
+			</array>
+		</dict>
+	</dict>
+	<key>UIApplicationShortcutItems</key>
+	<array>
+		<dict>
+			<key>UIApplicationShortcutItemIconType</key>
+			<string>UIApplicationShortcutIconTypeAdd</string>
+			<key>UIApplicationShortcutItemSubtitle</key>
+			<string>今の気分を素早く記録</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>クイック記録</string>
+			<key>UIApplicationShortcutItemType</key>
+			<string>com.mentalhealth.quickentry</string>
+		</dict>
+	</array>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>background-processing</string>
+		<string>background-fetch</string>
+		<string>processing</string>
+		<string>fetch</string>
+	</array>
+	<key>UILaunchScreen</key>
+	<dict/>
 </dict>
 </plist>

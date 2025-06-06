@@ -9,10 +9,12 @@ struct SettingsView: View {
     @AppStorage("notificationInterval") private var notificationInterval = 60
     @AppStorage("notificationsEnabled") private var notificationsEnabled = false
     
-    @ObservedObject private var notificationManager = NotificationManager.shared
+    let notificationManager = NotificationManager.shared
     @State private var notificationSchedule: [Date] = []
     
     private let intervalOptions = [
+        (1, "1分ごと"),
+        (15, "15分ごと"),
         (30, "30分ごと"),
         (60, "1時間ごと"),
         (120, "2時間ごと")
@@ -177,7 +179,7 @@ struct SettingsView: View {
     private func scheduleNotifications() {
         guard notificationsEnabled else { return }
         
-        notificationManager.scheduleNotifications(
+        notificationManager.scheduleIntervalNotifications(
             startTime: notificationStartTime,
             endTime: notificationEndTime,
             interval: notificationInterval
