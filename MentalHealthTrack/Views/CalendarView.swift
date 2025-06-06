@@ -1,22 +1,33 @@
-import SwiftUI
 import CoreData
+import SwiftUI
 
 struct CalendarView: View {
     let entries: [MindfulnessData]
     let onDateSelected: (Date) -> Void
-    
+
     @Environment(\.presentationMode) var presentationMode
     @State private var selectedMonth = Date()
     @State private var selectedDate: Date?
-    
+    @State private var dragOffset = CGSize.zero
+
     private let calendar = Calendar.current
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy年M月"
         return formatter
     }()
-    
+
     var body: some View {
+        // Grabber（引っ張りハンドル）
+        HStack {
+            Spacer()
+            RoundedRectangle(cornerRadius: 2.5)
+                .fill(Color(UIColor.systemGray3))
+                .frame(width: 36, height: 5)
+                .padding(.top, 8)
+                .padding(.bottom, 4)
+            Spacer()
+        }
         NavigationView {
             VStack(spacing: 0) {
                 // 月選択ヘッダー
@@ -24,10 +35,10 @@ struct CalendarView: View {
                     selectedMonth: $selectedMonth,
                     dateFormatter: dateFormatter
                 )
-                
+
                 // 曜日ヘッダー
                 WeekdayHeader()
-                
+
                 // カレンダーグリッド
                 CalendarGrid(
                     selectedMonth: selectedMonth,
@@ -38,21 +49,16 @@ struct CalendarView: View {
                         onDateSelected(date)
                     }
                 )
-                
+
                 Spacer()
-                
+
                 // 凡例
                 CalendarLegend()
             }
             .navigationTitle("カレンダー")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("閉じる") {
-                        presentationMode.wrappedValue.dismiss()
-                    }
-                }
-            }
+            .offset(y: dragOffset.height)
+            .animation(.interactiveSpring(), value: dragOffset)
         }
     }
 }
@@ -61,27 +67,31 @@ struct CalendarView: View {
 struct MonthNavigationHeader: View {
     @Binding var selectedMonth: Date
     let dateFormatter: DateFormatter
-    
+
     var body: some View {
         HStack {
             Button(action: {
-                selectedMonth = Calendar.current.date(byAdding: .month, value: -1, to: selectedMonth) ?? selectedMonth
+                selectedMonth =
+                    Calendar.current.date(byAdding: .month, value: -1, to: selectedMonth)
+                    ?? selectedMonth
             }) {
                 Image(systemName: "chevron.left")
                     .font(.title2)
                     .foregroundColor(.blue)
             }
-            
+
             Spacer()
-            
+
             Text(dateFormatter.string(from: selectedMonth))
                 .font(.title2)
                 .fontWeight(.semibold)
-            
+
             Spacer()
-            
+
             Button(action: {
-                selectedMonth = Calendar.current.date(byAdding: .month, value: 1, to: selectedMonth) ?? selectedMonth
+                selectedMonth =
+                    Calendar.current.date(byAdding: .month, value: 1, to: selectedMonth)
+                    ?? selectedMonth
             }) {
                 Image(systemName: "chevron.right")
                     .font(.title2)
@@ -95,7 +105,7 @@ struct MonthNavigationHeader: View {
 
 struct WeekdayHeader: View {
     private let weekdays = ["日", "月", "火", "水", "木", "金", "土"]
-    
+
     var body: some View {
         HStack {
             ForEach(weekdays, id: \.self) { weekday in
@@ -116,18 +126,20 @@ struct CalendarGrid: View {
     let entries: [MindfulnessData]
     let selectedDate: Date?
     let onDateTapped: (Date) -> Void
-    
+
     private let calendar = Calendar.current
-    
+
     var body: some View {
         let days = generateDays(for: selectedMonth)
-        
+
         LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 8) {
             ForEach(days, id: \.self) { date in
                 CalendarDayView(
                     date: date,
-                    isCurrentMonth: calendar.isDate(date, equalTo: selectedMonth, toGranularity: .month),
-                    isSelected: selectedDate != nil && calendar.isDate(date, inSameDayAs: selectedDate!),
+                    isCurrentMonth: calendar.isDate(
+                        date, equalTo: selectedMonth, toGranularity: .month),
+                    isSelected: selectedDate != nil
+                        && calendar.isDate(date, inSameDayAs: selectedDate!),
                     entryCount: entriesCount(for: date),
                     onTapped: {
                         onDateTapped(date)
@@ -137,46 +149,48 @@ struct CalendarGrid: View {
         }
         .padding(.horizontal)
     }
-    
+
     private func generateDays(for month: Date) -> [Date] {
         guard let range = calendar.range(of: .day, in: .month, for: month),
-              let firstDay = calendar.date(from: calendar.dateComponents([.year, .month], from: month)) else {
+            let firstDay = calendar.date(
+                from: calendar.dateComponents([.year, .month], from: month))
+        else {
             return []
         }
-        
+
         let firstWeekday = calendar.component(.weekday, from: firstDay)
         let numberOfDaysInMonth = range.count
-        
+
         var days: [Date] = []
-        
+
         // 前月の日付を追加
         for i in 1..<firstWeekday {
             if let date = calendar.date(byAdding: .day, value: -(firstWeekday - i), to: firstDay) {
                 days.append(date)
             }
         }
-        
+
         // 現在月の日付を追加
         for i in 0..<numberOfDaysInMonth {
             if let date = calendar.date(byAdding: .day, value: i, to: firstDay) {
                 days.append(date)
             }
         }
-        
+
         // 次月の日付を追加（6週間分確保）
         let totalCells = 42
         let remainingCells = totalCells - days.count
         let lastDay = days.last ?? firstDay
-        
+
         for i in 1...remainingCells {
             if let date = calendar.date(byAdding: .day, value: i, to: lastDay) {
                 days.append(date)
             }
         }
-        
+
         return days
     }
-    
+
     private func entriesCount(for date: Date) -> Int {
         return MindfulnessDataHelper.entriesForDate(date, from: entries).count
     }
@@ -189,7 +203,7 @@ struct CalendarLegend: View {
                 .font(.caption)
                 .fontWeight(.medium)
                 .foregroundColor(.secondary)
-            
+
             HStack(spacing: 16) {
                 LegendItem(color: .gray, text: "記録なし")
                 LegendItem(color: .blue, text: "1-2回")
@@ -209,7 +223,7 @@ struct CalendarLegend: View {
 struct LegendItem: View {
     let color: Color
     let text: String
-    
+
     var body: some View {
         HStack(spacing: 4) {
             Circle()

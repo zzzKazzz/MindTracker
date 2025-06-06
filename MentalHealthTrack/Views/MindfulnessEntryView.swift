@@ -1,5 +1,5 @@
-import SwiftUI
 import CoreData
+import SwiftUI
 
 struct MindfulnessEntryView: View {
     @Environment(\.managedObjectContext) private var viewContext
@@ -8,14 +8,14 @@ struct MindfulnessEntryView: View {
     @State private var selectedMood: Mood = .neutral
     @State private var showingSaveConfirmation = false
     @State private var entryTime = Date()
-    
+
     enum Mood: String, CaseIterable {
         case veryHappy = "😊"
         case happy = "🙂"
         case neutral = "😐"
         case sad = "😔"
         case verySad = "😢"
-        
+
         var description: String {
             switch self {
             case .veryHappy: return "とても良い"
@@ -26,121 +26,219 @@ struct MindfulnessEntryView: View {
             }
         }
     }
-    
+
     var body: some View {
         NavigationView {
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    // ヘッダー
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("30分間の振り返り")
-                            .font(.largeTitle)
-                            .fontWeight(.bold)
-                        
-                        Text(timeRangeText())
+                VStack(alignment: .leading, spacing: 24) {
+                    // Grabber（引っ張りハンドル）
+                    HStack {
+                        Spacer()
+                        RoundedRectangle(cornerRadius: 2.5)
+                            .fill(Color(UIColor.systemGray3))
+                            .frame(width: 36, height: 5)
+                            .padding(.top, 8)
+                            .padding(.bottom, 4)
+                        Spacer()
+                    }
+                    // 改善されたヘッダー
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Circle()
+                                .fill(
+                                    LinearGradient(
+                                        gradient: Gradient(colors: [
+                                            Color.blue.opacity(0.6), Color.purple.opacity(0.6),
+                                        ]),
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .frame(width: 12, height: 12)
+
+                            Text("マインドフルネス・ジャーナル")
+                                .font(.title2)
+                                .fontWeight(.medium)
+                                .foregroundColor(.primary)
+                        }
+
+                        Text("今の気持ちを記録してみましょう")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
+
+                        // 時間表示をもっとスタイリッシュに
+                        HStack {
+                            Image(systemName: "clock")
+                                .foregroundColor(.blue)
+                                .font(.caption)
+                            Text(timeRangeText())
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color.blue.opacity(0.1))
+                                .cornerRadius(8)
+                        }
                     }
                     .padding(.horizontal)
-                    
-                    VStack(spacing: 25) {
-                        // 活動内容入力
-                        VStack(alignment: .leading, spacing: 12) {
-                            Label("この30分間、何をしていましたか？", systemImage: "clock.fill")
-                                .font(.headline)
-                                .foregroundColor(.primary)
-                            
-                            TextEditor(text: $activityText)
-                                .frame(minHeight: 100)
-                                .padding(12)
-                                .background(Color(UIColor.systemGray6))
-                                .cornerRadius(12)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .stroke(Color(UIColor.systemGray4), lineWidth: 1)
-                                )
-                        }
-                        
-                        // 気分選択
-                        VStack(alignment: .leading, spacing: 12) {
-                            Label("気分はいかがでしたか？", systemImage: "heart.fill")
-                                .font(.headline)
-                                .foregroundColor(.primary)
-                            
-                            HStack(spacing: 15) {
-                                ForEach(Mood.allCases, id: \.self) { mood in
-                                    VStack(spacing: 8) {
-                                        Text(mood.rawValue)
-                                            .font(.system(size: 32))
-                                        Text(mood.description)
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                    }
-                                    .padding(.vertical, 12)
-                                    .padding(.horizontal, 8)
-                                    .background(
-                                        selectedMood == mood ?
-                                        Color.blue.opacity(0.2) : Color.clear
-                                    )
-                                    .cornerRadius(12)
+                    .padding(.top, 4)  // grabberの分、上のパディングを少し減らす
+
+                    VStack(spacing: 28) {
+                        // 活動内容入力セクション
+                        VStack(alignment: .leading, spacing: 16) {
+                            HStack {
+                                Image(systemName: "clock.fill")
+                                    .foregroundColor(.blue)
+                                    .font(.title3)
+                                Text("この30分間の活動")
+                                    .font(.headline)
+                                    .fontWeight(.semibold)
+                            }
+
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("何をしていましたか？")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+
+                                TextEditor(text: $activityText)
+                                    .frame(minHeight: 100)
+                                    .padding(16)
+                                    .background(Color(UIColor.systemBackground))
+                                    .cornerRadius(16)
+                                    .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
                                     .overlay(
-                                        RoundedRectangle(cornerRadius: 12)
-                                            .stroke(
-                                                selectedMood == mood ? Color.blue : Color.clear,
-                                                lineWidth: 2
-                                            )
+                                        RoundedRectangle(cornerRadius: 16)
+                                            .stroke(Color(UIColor.systemGray5), lineWidth: 1)
                                     )
-                                    .onTapGesture {
-                                        selectedMood = mood
-                                        // 触覚フィードバック
-                                        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
-                                        impactFeedback.impactOccurred()
+                            }
+                        }
+
+                        // 気分選択セクション
+                        VStack(alignment: .leading, spacing: 16) {
+                            HStack {
+                                Image(systemName: "heart.fill")
+                                    .foregroundColor(.pink)
+                                    .font(.title3)
+                                Text("今の気分")
+                                    .font(.headline)
+                                    .fontWeight(.semibold)
+                            }
+
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("どんな気分でしたか？")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+
+                                HStack(spacing: 12) {
+                                    ForEach(Mood.allCases, id: \.self) { mood in
+                                        VStack(spacing: 6) {
+                                            Text(mood.rawValue)
+                                                .font(.system(size: 28))
+                                            Text(mood.description)
+                                                .font(.caption2)
+                                                .foregroundColor(.secondary)
+                                                .multilineTextAlignment(.center)
+                                        }
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 16)
+                                        .padding(.horizontal, 4)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 16)
+                                                .fill(
+                                                    selectedMood == mood
+                                                        ? Color.blue.opacity(0.15)
+                                                        : Color(UIColor.systemGray6))
+                                        )
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 16)
+                                                .stroke(
+                                                    selectedMood == mood ? Color.blue : Color.clear,
+                                                    lineWidth: 2
+                                                )
+                                        )
+                                        .scaleEffect(selectedMood == mood ? 1.02 : 1.0)
+                                        .animation(
+                                            .spring(response: 0.3, dampingFraction: 0.6),
+                                            value: selectedMood
+                                        )
+                                        .onTapGesture {
+                                            selectedMood = mood
+                                            let impactFeedback = UIImpactFeedbackGenerator(
+                                                style: .light)
+                                            impactFeedback.impactOccurred()
+                                        }
                                     }
                                 }
                             }
                         }
-                        
-                        // 感情詳細入力
-                        VStack(alignment: .leading, spacing: 12) {
-                            Label("どのように感じましたか？（詳細）", systemImage: "text.bubble.fill")
-                                .font(.headline)
-                                .foregroundColor(.primary)
-                            
-                            TextEditor(text: $feelingText)
-                                .frame(minHeight: 120)
-                                .padding(12)
-                                .background(Color(UIColor.systemGray6))
-                                .cornerRadius(12)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .stroke(Color(UIColor.systemGray4), lineWidth: 1)
-                                )
-                        }
-                        
-                        // 保存ボタン
-                        Button(action: saveEntry) {
+
+                        // 感情詳細入力セクション
+                        VStack(alignment: .leading, spacing: 16) {
                             HStack {
-                                Image(systemName: "checkmark.circle.fill")
-                                Text("記録を保存")
+                                Image(systemName: "text.bubble.fill")
+                                    .foregroundColor(.green)
+                                    .font(.title3)
+                                Text("感情の詳細")
+                                    .font(.headline)
                                     .fontWeight(.semibold)
                             }
+
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("どのように感じましたか？")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+
+                                TextEditor(text: $feelingText)
+                                    .frame(minHeight: 120)
+                                    .padding(16)
+                                    .background(Color(UIColor.systemBackground))
+                                    .cornerRadius(16)
+                                    .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 16)
+                                            .stroke(Color(UIColor.systemGray5), lineWidth: 1)
+                                    )
+                            }
+                        }
+
+                        // 保存ボタン
+                        Button(action: saveEntry) {
+                            HStack(spacing: 12) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.title3)
+                                Text("記録を保存")
+                                    .fontWeight(.semibold)
+                                    .font(.body)
+                            }
                             .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
+                            .padding(.vertical, 18)
                             .background(
                                 LinearGradient(
-                                    gradient: Gradient(colors: [Color.blue, Color.blue.opacity(0.8)]),
+                                    gradient: Gradient(colors: [
+                                        activityText.isEmpty || feelingText.isEmpty
+                                            ? Color.gray.opacity(0.6) : Color.blue,
+                                        activityText.isEmpty || feelingText.isEmpty
+                                            ? Color.gray.opacity(0.4) : Color.blue.opacity(0.8),
+                                    ]),
                                     startPoint: .leading,
                                     endPoint: .trailing
                                 )
                             )
                             .foregroundColor(.white)
-                            .cornerRadius(12)
+                            .cornerRadius(16)
+                            .shadow(color: Color.blue.opacity(0.3), radius: 8, x: 0, y: 4)
+                            .scaleEffect(activityText.isEmpty || feelingText.isEmpty ? 0.98 : 1.0)
+                            .animation(
+                                .easeInOut(duration: 0.2),
+                                value: activityText.isEmpty || feelingText.isEmpty)
                         }
                         .disabled(activityText.isEmpty || feelingText.isEmpty)
                     }
                     .padding(.horizontal)
+                    .padding(.bottom, 32)
                 }
             }
+            .background(Color(UIColor.systemGroupedBackground))
             .navigationBarHidden(true)
         }
         .alert("記録完了", isPresented: $showingSaveConfirmation) {
@@ -151,54 +249,49 @@ struct MindfulnessEntryView: View {
             Text("30分間の振り返りが正常に保存されました。")
         }
     }
-    
+
     private func timeRangeText() -> String {
         let formatter = DateFormatter()
         formatter.timeStyle = .short
         formatter.locale = Locale(identifier: "ja_JP")
-        
+
         let endTime = entryTime
         let startTime = Calendar.current.date(byAdding: .minute, value: -30, to: endTime) ?? endTime
-        
+
         return "\(formatter.string(from: startTime)) - \(formatter.string(from: endTime))"
     }
-    
+
     private func saveEntry() {
-        // ここでCore Dataやその他のデータベースに保存
         let entry = MindfulnessEntry(
             timestamp: entryTime,
             activity: activityText,
             mood: selectedMood,
             feelings: feelingText
         )
-        
-        // TODO: データベース保存処理
+
         saveToDatabase(entry)
-        
-        // 成功フィードバック
+
         let successFeedback = UINotificationFeedbackGenerator()
         successFeedback.notificationOccurred(.success)
-        
+
         showingSaveConfirmation = true
     }
-    
+
     private func clearForm() {
         activityText = ""
         feelingText = ""
         selectedMood = .neutral
         entryTime = Date()
     }
-    
+
     private func saveToDatabase(_ entry: MindfulnessEntry) {
-        // Core Dataエンティティを作成
         let mindfulnessData = MindfulnessData(context: viewContext)
         mindfulnessData.id = entry.id
         mindfulnessData.timestamp = entry.timestamp
         mindfulnessData.activity = entry.activity
         mindfulnessData.mood = entry.mood.rawValue
         mindfulnessData.feelings = entry.feelings
-        
-        // データを保存
+
         do {
             try viewContext.save()
             print("データが正常に保存されました")

@@ -4,6 +4,7 @@ import UserNotifications
 
 struct ContentView: View {
     @Environment(\.managedObjectContext) private var viewContext
+    @EnvironmentObject var appState: AppState
     @FetchRequest(
         sortDescriptors: [NSSortDescriptor(keyPath: \MindfulnessData.timestamp, ascending: false)],
         animation: .default)
@@ -23,26 +24,6 @@ struct ContentView: View {
     var body: some View {
         NavigationView {
             VStack {
-                // デバッグ情報表示（開発時のみ）
-                #if DEBUG
-                VStack {
-                    Text("通知ステータス: \(notificationStatusText)")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Button("通知権限を再確認") {
-                        checkNotificationStatus()
-                    }
-                    .font(.caption)
-                    
-                    Button("1分後テスト通知") {
-                        scheduleTestNotification(after: 60)
-                    }
-                    .font(.caption)
-                    .foregroundColor(.blue)
-                }
-                .padding(.bottom, 8)
-                #endif
-                
                 // スクリーンタイム円グラフ
                 ScreenTimeCardView()
                     .padding(.horizontal)
@@ -86,10 +67,6 @@ struct ContentView: View {
                         Image(systemName: "line.horizontal.3")
                             .font(.title2)
                     }
-                    
-                    if !entries.isEmpty {
-                        EditButton()
-                    }
                 }
             }
         }
@@ -100,6 +77,14 @@ struct ContentView: View {
             // 1秒後に権限リクエスト（ユーザーエクスペリエンス向上のため）
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                 requestNotificationPermissionIfNeeded()
+            }
+        }
+        // 通知タップで記録画面を開く処理
+        .onChange(of: appState.shouldShowEntryView) { shouldShow in
+            if shouldShow {
+                showingEntryView = true
+                // フラグをリセット
+                appState.shouldShowEntryView = false
             }
         }
         .sheet(isPresented: $showingEntryView) {
@@ -126,6 +111,10 @@ struct ContentView: View {
         }
         .sheet(isPresented: $showingAIAnalysis) {
             AIAnalysisView()
+                .environment(\.managedObjectContext, viewContext)
+        }
+        .sheet(isPresented: $appState.shouldShowEntryView) {
+            MindfulnessEntryView()
                 .environment(\.managedObjectContext, viewContext)
         }
     }
@@ -460,5 +449,6 @@ struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
         ContentView()
             .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
+            .environmentObject(AppState())
     }
 }

@@ -71,7 +71,6 @@ class NotificationManager: ObservableObject {
         var currentMinutes = startMinutes
         var notificationCount = 0
         
-        print("通知スケジュール開始: \(startHour):\(String(format: "%02d", startMinute)) 〜 \(endHour):\(String(format: "%02d", endMinute)), 間隔: \(interval)分")
         
         while currentMinutes <= endMinutes {
             let hour = currentMinutes / 60
@@ -84,14 +83,9 @@ class NotificationManager: ObservableObject {
                 title: "気持ちの記録",
                 body: getNotificationMessage(for: hour)
             )
-            
-            print("通知スケジュール: \(hour):\(String(format: "%02d", minute))")
-            
             currentMinutes += interval
             notificationCount += 1
         }
-        
-        print("合計 \(notificationCount) 個の通知をスケジュールしました")
         
         // スケジュール結果を確認
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
@@ -105,13 +99,14 @@ class NotificationManager: ObservableObject {
         content.body = body
         content.sound = .default
         content.badge = 1
+        content.userInfo = ["type": "mindfulness"]
         
         var dateComponents = DateComponents()
         dateComponents.hour = hour
         dateComponents.minute = minute
         
         let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: true)
-        let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
+        let request = UNNotificationRequest(identifier: "mindfulness_\(hour)_\(minute)", content: content, trigger: trigger)
         
         UNUserNotificationCenter.current().add(request) { error in
             if let error = error {
@@ -122,18 +117,18 @@ class NotificationManager: ObservableObject {
     
     private func getNotificationMessage(for hour: Int) -> String {
         switch hour {
-        case 6..<10:
-            return "おはようございます！今朝の気持ちはいかがですか？"
-        case 10..<12:
-            return "午前中の調子はどうですか？"
+        case 6..<9:
+            return "おはよう！今日の気持ちも登録して行こう!"
+        case 9..<12:
+            return "午前中の記録をしていこう！"
         case 12..<14:
-            return "お昼休み、リフレッシュしていますか？"
+            return "お昼休み、リフレッシュ"
         case 14..<17:
             return "午後の一息、今の気持ちを記録しませんか？"
         case 17..<20:
-            return "お疲れさまです。今日の振り返りをしてみましょう"
+            return "今日もあと一息。"
         case 20..<23:
-            return "一日お疲れさまでした。今日の気持ちを記録してみませんか？"
+            return "今日もお疲れ！記録して振り返ろう！"
         default:
             return "今の気持ちを記録してみませんか？"
         }
@@ -143,14 +138,10 @@ class NotificationManager: ObservableObject {
     
     func cancelNotifications() {
         UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
-        print("すべての通知をキャンセルしました")
     }
     
     func printScheduledNotifications() {
         UNUserNotificationCenter.current().getPendingNotificationRequests { requests in
-            print("=== スケジュール済み通知一覧 ===")
-            print("通知数: \(requests.count)")
-            
             for request in requests.sorted(by: { req1, req2 in
                 guard let trigger1 = req1.trigger as? UNCalendarNotificationTrigger,
                       let trigger2 = req2.trigger as? UNCalendarNotificationTrigger,
@@ -168,10 +159,8 @@ class NotificationManager: ObservableObject {
                 if let trigger = request.trigger as? UNCalendarNotificationTrigger {
                     let hour = trigger.dateComponents.hour ?? 0
                     let minute = trigger.dateComponents.minute ?? 0
-                    print("- \(hour):\(String(format: "%02d", minute)) : \(request.content.body)")
                 }
             }
-            print("===============================")
         }
     }
     

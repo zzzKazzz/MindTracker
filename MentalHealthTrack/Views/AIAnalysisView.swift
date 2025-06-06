@@ -1,5 +1,5 @@
-import SwiftUI
 import CoreData
+import SwiftUI
 
 struct AIAnalysisView: View {
     @Environment(\.managedObjectContext) private var viewContext
@@ -11,6 +11,16 @@ struct AIAnalysisView: View {
     @State private var isLoading = true
 
     var body: some View {
+        // Grabber（引っ張りハンドル）
+        HStack {
+            Spacer()
+            RoundedRectangle(cornerRadius: 2.5)
+                .fill(Color(UIColor.systemGray3))
+                .frame(width: 36, height: 5)
+                .padding(.top, 8)
+                .padding(.bottom, 4)
+            Spacer()
+        }
         NavigationView {
             ScrollView {
                 if isLoading {
@@ -42,7 +52,7 @@ struct AIAnalysisView: View {
 struct AIAnalysisView_Previews: PreviewProvider {
     static var previews: some View {
         AIAnalysisView()
-            .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
+            .environment(
+                \.managedObjectContext, PersistenceController.preview.container.viewContext)
     }
 }
-
