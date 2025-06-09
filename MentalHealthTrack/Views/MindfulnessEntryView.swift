@@ -3,10 +3,10 @@ import SwiftUI
 
 struct MindfulnessEntryView: View {
     @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.dismiss) private var dismiss
     @State private var activityText: String = ""
     @State private var feelingText: String = ""
     @State private var selectedMood: Mood = .neutral
-    @State private var showingSaveConfirmation = false
     @State private var entryTime = Date()
 
     enum Mood: String, CaseIterable {
@@ -241,13 +241,6 @@ struct MindfulnessEntryView: View {
             .background(Color(UIColor.systemGroupedBackground))
             .navigationBarHidden(true)
         }
-        .alert("記録完了", isPresented: $showingSaveConfirmation) {
-            Button("OK") {
-                clearForm()
-            }
-        } message: {
-            Text("30分間の振り返りが正常に保存されました。")
-        }
     }
 
     private func timeRangeText() -> String {
@@ -274,7 +267,7 @@ struct MindfulnessEntryView: View {
         let successFeedback = UINotificationFeedbackGenerator()
         successFeedback.notificationOccurred(.success)
 
-        showingSaveConfirmation = true
+        dismiss()
     }
 
     private func clearForm() {

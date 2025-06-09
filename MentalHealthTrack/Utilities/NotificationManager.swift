@@ -70,20 +70,23 @@ class NotificationManager: ObservableObject {
         var currentMinutes = startMinutes
         var notificationCount = 0
         
-        
         while currentMinutes <= endMinutes {
             let hour = currentMinutes / 60
             let minute = currentMinutes % 60
             
-            scheduleNotification(
-                identifier: "intervalNotification_\(notificationCount)",
-                hour: hour,
-                minute: minute,
-                title: "気持ちの記録",
-                body: getNotificationMessage(for: hour)
-            )
+            // 12:00〜13:00の間は通知をスキップ
+            if !(hour == 12 && minute >= 0 && minute < 60) {
+                scheduleNotification(
+                    identifier: "intervalNotification_\(notificationCount)",
+                    hour: hour,
+                    minute: minute,
+                    title: "気持ちの記録",
+                    body: getNotificationMessage(for: hour)
+                )
+                notificationCount += 1
+            }
+            
             currentMinutes += interval
-            notificationCount += 1
         }
         
         // スケジュール結果を確認

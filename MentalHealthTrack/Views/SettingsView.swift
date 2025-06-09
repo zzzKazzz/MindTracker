@@ -15,8 +15,6 @@ struct SettingsView: View {
     @State private var notificationSchedule: [Date] = []
 
     private let intervalOptions = [
-        (5, "5分ごと"),
-        (15, "15分ごと"),
         (30, "30分ごと"),
         (60, "1時間ごと"),
         (120, "2時間ごと"),
