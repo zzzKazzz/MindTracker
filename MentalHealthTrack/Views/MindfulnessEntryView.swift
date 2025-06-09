@@ -1,5 +1,97 @@
 import CoreData
 import SwiftUI
+import UIKit
+
+// UITextViewをラップしたカスタムコンポーネント
+struct AutoScrollingTextEditor: UIViewRepresentable {
+    @Binding var text: String
+    let placeholder: String
+    let minHeight: CGFloat
+    
+    init(text: Binding<String>, placeholder: String = "", minHeight: CGFloat = 100) {
+        self._text = text
+        self.placeholder = placeholder
+        self.minHeight = minHeight
+    }
+    
+    func makeUIView(context: Context) -> UITextView {
+        let textView = UITextView()
+        textView.delegate = context.coordinator
+        textView.font = UIFont.systemFont(ofSize: 16)
+        textView.backgroundColor = UIColor.clear
+        textView.textColor = UIColor.label
+        textView.isEditable = true
+        textView.isScrollEnabled = false  // スクロールを無効化
+        textView.showsVerticalScrollIndicator = false
+        textView.textContainerInset = UIEdgeInsets.zero
+        textView.textContainer.lineFragmentPadding = 0
+        
+        // プレースホルダーの設定
+        if text.isEmpty && !placeholder.isEmpty {
+            textView.text = placeholder
+            textView.textColor = UIColor.placeholderText
+        }
+        
+        return textView
+    }
+    
+    func updateUIView(_ uiView: UITextView, context: Context) {
+        if uiView.text != text {
+            uiView.text = text
+        }
+        
+        // プレースホルダーの表示制御
+        if text.isEmpty && !placeholder.isEmpty {
+            uiView.text = placeholder
+            uiView.textColor = UIColor.placeholderText
+        } else if uiView.textColor == UIColor.placeholderText {
+            uiView.textColor = UIColor.label
+        }
+        
+        // テキストの量に応じて高さを調整
+        let size = uiView.sizeThatFits(CGSize(width: uiView.frame.width, height: .greatestFiniteMagnitude))
+        uiView.frame.size.height = max(size.height, minHeight)
+    }
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+    
+    class Coordinator: NSObject, UITextViewDelegate {
+        let parent: AutoScrollingTextEditor
+        
+        init(_ parent: AutoScrollingTextEditor) {
+            self.parent = parent
+        }
+        
+        func textViewDidBeginEditing(_ textView: UITextView) {
+            // プレースホルダーをクリア
+            if textView.textColor == UIColor.placeholderText {
+                textView.text = ""
+                textView.textColor = UIColor.label
+            }
+        }
+        
+        func textViewDidEndEditing(_ textView: UITextView) {
+            // テキストが空の場合はプレースホルダーを表示
+            if textView.text.isEmpty {
+                textView.text = parent.placeholder
+                textView.textColor = UIColor.placeholderText
+            }
+        }
+        
+        func textViewDidChange(_ textView: UITextView) {
+            // テキストの変更をバインディングに反映
+            if textView.textColor != UIColor.placeholderText {
+                parent.text = textView.text
+            }
+            
+            // テキストの量に応じて高さを調整
+            let size = textView.sizeThatFits(CGSize(width: textView.frame.width, height: .greatestFiniteMagnitude))
+            textView.frame.size.height = max(size.height, parent.minHeight)
+        }
+    }
+}
 
 struct MindfulnessEntryView: View {
     @Environment(\.managedObjectContext) private var viewContext
@@ -100,16 +192,19 @@ struct MindfulnessEntryView: View {
                                     .font(.subheadline)
                                     .foregroundColor(.secondary)
 
-                                TextEditor(text: $activityText)
-                                    .frame(minHeight: 100)
-                                    .padding(16)
-                                    .background(Color(UIColor.systemBackground))
-                                    .cornerRadius(16)
-                                    .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 16)
-                                            .stroke(Color(UIColor.systemGray5), lineWidth: 1)
-                                    )
+                                AutoScrollingTextEditor(
+                                    text: $activityText,
+                                    minHeight: 100
+                                )
+                                .frame(minHeight: 100)
+                                .padding(16)
+                                .background(Color(UIColor.systemBackground))
+                                .cornerRadius(16)
+                                .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 16)
+                                        .stroke(Color(UIColor.systemGray5), lineWidth: 1)
+                                )
                             }
                         }
 
@@ -188,16 +283,19 @@ struct MindfulnessEntryView: View {
                                     .font(.subheadline)
                                     .foregroundColor(.secondary)
 
-                                TextEditor(text: $feelingText)
-                                    .frame(minHeight: 120)
-                                    .padding(16)
-                                    .background(Color(UIColor.systemBackground))
-                                    .cornerRadius(16)
-                                    .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 16)
-                                            .stroke(Color(UIColor.systemGray5), lineWidth: 1)
-                                    )
+                                AutoScrollingTextEditor(
+                                    text: $feelingText,
+                                    minHeight: 120
+                                )
+                                .frame(minHeight: 120)
+                                .padding(16)
+                                .background(Color(UIColor.systemBackground))
+                                .cornerRadius(16)
+                                .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 16)
+                                        .stroke(Color(UIColor.systemGray5), lineWidth: 1)
+                                )
                             }
                         }
 
