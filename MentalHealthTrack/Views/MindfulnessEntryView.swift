@@ -96,6 +96,7 @@ struct AutoScrollingTextEditor: UIViewRepresentable {
 struct MindfulnessEntryView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
+    @StateObject private var keyboard = KeyboardResponder()
     @State private var activityText: String = ""
     @State private var feelingText: String = ""
     @State private var selectedMood: Mood = .neutral
@@ -121,7 +122,8 @@ struct MindfulnessEntryView: View {
 
     var body: some View {
         NavigationView {
-            ScrollView {
+            ScrollViewReader { proxy in
+                ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     // Grabber（引っ張りハンドル）
                     HStack {
@@ -334,9 +336,33 @@ struct MindfulnessEntryView: View {
                     }
                     .padding(.horizontal)
                     .padding(.bottom, 32)
+                    Color.clear.frame(height: 1).id("bottom")
                 }
+                .onChange(of: keyboard.currentHeight) { height in
+                    if height > 0 {
+                        withAnimation {
+                            proxy.scrollTo("bottom", anchor: .bottom)
+                        }
+                    }
+                }
+                .onChange(of: activityText) { _ in
+                    if keyboard.currentHeight > 0 {
+                        withAnimation {
+                            proxy.scrollTo("bottom", anchor: .bottom)
+                        }
+                    }
+                }
+                .onChange(of: feelingText) { _ in
+                    if keyboard.currentHeight > 0 {
+                        withAnimation {
+                            proxy.scrollTo("bottom", anchor: .bottom)
+                        }
+                    }
+                }
+                .padding(.bottom, keyboard.currentHeight)
             }
             .background(Color(UIColor.systemGroupedBackground))
+            }
             .navigationBarHidden(true)
         }
     }
