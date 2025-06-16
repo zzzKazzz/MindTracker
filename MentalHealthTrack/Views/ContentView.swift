@@ -35,11 +35,6 @@ struct ContentView: View {
                     totalCount: entries.count
                 )
                 
-                // 今すぐ記録ボタン
-                RecordButtonView {
-                    showingEntryView = true
-                }
-                
                 // 履歴一覧
                 if entries.isEmpty {
                     EmptyStateView()
@@ -47,6 +42,10 @@ struct ContentView: View {
                     EntriesListView(entries: Array(entries)) { offsets in
                         deleteEntries(offsets: offsets)
                     }
+                }
+                // 今すぐ記録ボタン
+                RecordButtonView {
+                    showingEntryView = true
                 }
             }
             .navigationTitle("Compass for the Mind")

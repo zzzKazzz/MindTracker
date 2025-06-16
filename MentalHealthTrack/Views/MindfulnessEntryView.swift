@@ -99,21 +99,29 @@ struct MindfulnessEntryView: View {
                             }
 
                             VStack(alignment: .leading, spacing: 8) {
-                                Text("何をしていましたか？")
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
 
-                                TextEditor(text: $activityText)
-                                    .frame(minHeight: 100, maxHeight: 200)
-                                    .padding(12)
-                                    .background(Color(UIColor.systemBackground))
-                                    .cornerRadius(16)
-                                    .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 16)
-                                            .stroke(Color(UIColor.systemGray5), lineWidth: 1)
-                                    )
-                                    .id("activity")
+
+                                ZStack(alignment: .topLeading) {
+                                    TextEditor(text: $activityText)
+                                        .frame(minHeight: 100, maxHeight: 200)
+                                        .padding(12)
+                                        .background(Color(UIColor.systemBackground))
+                                        .cornerRadius(16)
+                                        .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 16)
+                                                .stroke(Color(UIColor.systemGray5), lineWidth: 1)
+                                        )
+                                    
+                                    if activityText.isEmpty {
+                                        Text("何をしていましたか？")
+                                            .foregroundColor(Color(UIColor.placeholderText))
+                                            .padding(.horizontal, 16)
+                                            .padding(.vertical, 20)
+                                            .allowsHitTesting(false)
+                                    }
+                                }
+                                .id("activity")
                             }
                         }
 
@@ -188,21 +196,27 @@ struct MindfulnessEntryView: View {
                             }
 
                             VStack(alignment: .leading, spacing: 8) {
-                                Text("どのように感じましたか？")
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
-
-                                TextEditor(text: $feelingText)
-                                    .frame(minHeight: 120, maxHeight: 200)
-                                    .padding(12)
-                                    .background(Color(UIColor.systemBackground))
-                                    .cornerRadius(16)
-                                    .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 16)
-                                            .stroke(Color(UIColor.systemGray5), lineWidth: 1)
-                                    )
-                                    .id("feeling")
+                                ZStack(alignment: .topLeading) {
+                                    TextEditor(text: $feelingText)
+                                        .frame(minHeight: 120, maxHeight: 200)
+                                        .padding(12)
+                                        .background(Color(UIColor.systemBackground))
+                                        .cornerRadius(16)
+                                        .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 16)
+                                                .stroke(Color(UIColor.systemGray5), lineWidth: 1)
+                                        )
+                                    
+                                    if feelingText.isEmpty {
+                                        Text("どのように感じましたか？")
+                                            .foregroundColor(Color(UIColor.placeholderText))
+                                            .padding(.horizontal, 16)
+                                            .padding(.vertical, 20)
+                                            .allowsHitTesting(false)
+                                    }
+                                }
+                                .id("feeling")
                             }
                         }
 
