@@ -7,11 +7,18 @@ struct AutoScrollingTextEditor: UIViewRepresentable {
     @Binding var text: String
     let placeholder: String
     let minHeight: CGFloat
-    
-    init(text: Binding<String>, placeholder: String = "", minHeight: CGFloat = 100) {
+    let maxHeight: CGFloat
+
+    init(
+        text: Binding<String>,
+        placeholder: String = "",
+        minHeight: CGFloat = 100,
+        maxHeight: CGFloat = 200
+    ) {
         self._text = text
         self.placeholder = placeholder
         self.minHeight = minHeight
+        self.maxHeight = maxHeight
     }
     
     func makeUIView(context: Context) -> UITextView {
@@ -50,7 +57,8 @@ struct AutoScrollingTextEditor: UIViewRepresentable {
         
         // テキストの量に応じて高さを調整
         let size = uiView.sizeThatFits(CGSize(width: uiView.frame.width, height: .greatestFiniteMagnitude))
-        uiView.frame.size.height = max(size.height, minHeight)
+        uiView.frame.size.height = min(max(size.height, minHeight), maxHeight)
+        uiView.isScrollEnabled = size.height > maxHeight
     }
     
     func makeCoordinator() -> Coordinator {
@@ -88,7 +96,8 @@ struct AutoScrollingTextEditor: UIViewRepresentable {
             
             // テキストの量に応じて高さを調整
             let size = textView.sizeThatFits(CGSize(width: textView.frame.width, height: .greatestFiniteMagnitude))
-            textView.frame.size.height = max(size.height, parent.minHeight)
+            textView.frame.size.height = min(max(size.height, parent.minHeight), parent.maxHeight)
+            textView.isScrollEnabled = size.height > parent.maxHeight
         }
     }
 }
@@ -196,7 +205,8 @@ struct MindfulnessEntryView: View {
 
                                 AutoScrollingTextEditor(
                                     text: $activityText,
-                                    minHeight: 100
+                                    minHeight: 100,
+                                    maxHeight: 200
                                 )
                                 .frame(minHeight: 100)
                                 .padding(16)
@@ -288,7 +298,8 @@ struct MindfulnessEntryView: View {
 
                                 AutoScrollingTextEditor(
                                     text: $feelingText,
-                                    minHeight: 120
+                                    minHeight: 120,
+                                    maxHeight: 200
                                 )
                                 .frame(minHeight: 100)
                                 .padding(16)
