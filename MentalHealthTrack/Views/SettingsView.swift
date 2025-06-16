@@ -274,7 +274,8 @@ struct SettingsView: View {
         notificationManager.scheduleIntervalNotifications(
             startTime: notificationStartTime,
             endTime: notificationEndTime,
-            interval: notificationInterval
+            interval: notificationInterval,
+            selectedWeekdays: selectedWeekdays
         )
 
         updateNotificationSchedule()

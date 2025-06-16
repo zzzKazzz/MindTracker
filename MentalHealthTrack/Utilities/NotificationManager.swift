@@ -54,7 +54,7 @@ class NotificationManager: ObservableObject {
         scheduleIntervalNotifications(startTime: startTime, endTime: endTime, interval: actualInterval)
     }
     
-    func scheduleIntervalNotifications(startTime: Date, endTime: Date, interval: Int) {
+    func scheduleIntervalNotifications(startTime: Date, endTime: Date, interval: Int, selectedWeekdays: Set<Int>? = nil) {
         // 既存の通知をクリア
         cancelNotifications()
         
@@ -74,15 +74,31 @@ class NotificationManager: ObservableObject {
             let hour = currentMinutes / 60
             let minute = currentMinutes % 60
             
-            // 12:00〜13:00の間は通知をスキップ
-            if !(hour == 12 && minute >= 0 && minute < 60) {
-                scheduleNotification(
-                    identifier: "intervalNotification_\(notificationCount)",
-                    hour: hour,
-                    minute: minute,
-                    title: "気持ちの記録",
-                    body: getNotificationMessage(for: hour)
-                )
+            // 12:01〜13:00の間は通知をスキップ（12:00ぴったりは含まない）
+            if !((hour == 12 && minute > 0) || (hour == 13 && minute == 0)) {
+                if let weekdays = selectedWeekdays {
+                    // 選択された曜日のみ通知をスケジュール
+                    for weekday in weekdays {
+                        scheduleNotification(
+                            identifier: "intervalNotification_\(notificationCount)_\(weekday)",
+                            hour: hour,
+                            minute: minute,
+                            weekday: weekday,
+                            title: "気持ちの記録",
+                            body: getNotificationMessage(for: hour)
+                        )
+                    }
+                } else {
+                    // 曜日指定がない場合は毎日通知
+                    scheduleNotification(
+                        identifier: "intervalNotification_\(notificationCount)",
+                        hour: hour,
+                        minute: minute,
+                        weekday: nil,
+                        title: "気持ちの記録",
+                        body: getNotificationMessage(for: hour)
+                    )
+                }
                 notificationCount += 1
             }
             
@@ -95,7 +111,7 @@ class NotificationManager: ObservableObject {
         }
     }
     
-    private func scheduleNotification(identifier: String, hour: Int, minute: Int, title: String, body: String) {
+    private func scheduleNotification(identifier: String, hour: Int, minute: Int, weekday: Int?, title: String, body: String) {
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body
@@ -106,9 +122,12 @@ class NotificationManager: ObservableObject {
         var dateComponents = DateComponents()
         dateComponents.hour = hour
         dateComponents.minute = minute
+        if let weekday = weekday {
+            dateComponents.weekday = weekday
+        }
         
         let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: true)
-        let request = UNNotificationRequest(identifier: "mindfulness_\(hour)_\(minute)", content: content, trigger: trigger)
+        let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
         
         UNUserNotificationCenter.current().add(request) { error in
             if let error = error {
