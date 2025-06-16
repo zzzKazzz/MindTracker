@@ -207,6 +207,7 @@ struct MindfulnessEntryView: View {
                                     RoundedRectangle(cornerRadius: 16)
                                         .stroke(Color(UIColor.systemGray5), lineWidth: 1)
                                 )
+                                .id("activity")
                             }
                         }
 
@@ -289,7 +290,7 @@ struct MindfulnessEntryView: View {
                                     text: $feelingText,
                                     minHeight: 120
                                 )
-                                .frame(minHeight: 120)
+                                .frame(minHeight: 100)
                                 .padding(16)
                                 .background(Color(UIColor.systemBackground))
                                 .cornerRadius(16)
@@ -298,6 +299,7 @@ struct MindfulnessEntryView: View {
                                     RoundedRectangle(cornerRadius: 16)
                                         .stroke(Color(UIColor.systemGray5), lineWidth: 1)
                                 )
+                                .id("feeling")
                             }
                         }
 
@@ -341,21 +343,25 @@ struct MindfulnessEntryView: View {
                 .onChange(of: keyboard.currentHeight) { height in
                     if height > 0 {
                         withAnimation {
-                            proxy.scrollTo("bottom", anchor: .bottom)
+                            if !activityText.isEmpty {
+                                proxy.scrollTo("activity", anchor: .bottom)
+                            } else if !feelingText.isEmpty {
+                                proxy.scrollTo("feeling", anchor: .bottom)
+                            }
                         }
                     }
                 }
                 .onChange(of: activityText) { _ in
                     if keyboard.currentHeight > 0 {
                         withAnimation {
-                            proxy.scrollTo("bottom", anchor: .bottom)
+                            proxy.scrollTo("activity", anchor: .bottom)
                         }
                     }
                 }
                 .onChange(of: feelingText) { _ in
                     if keyboard.currentHeight > 0 {
                         withAnimation {
-                            proxy.scrollTo("bottom", anchor: .bottom)
+                            proxy.scrollTo("feeling", anchor: .bottom)
                         }
                     }
                 }

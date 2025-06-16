@@ -25,8 +25,9 @@ struct ContentView: View {
         NavigationView {
             VStack {
                 // スクリーンタイム円グラフ
-                ScreenTimeCardView()
-                    .padding(.horizontal)
+                // TODO:課金アカウントになったら解放予定
+                // ScreenTimeCardView()
+                //     .padding(.horizontal)
                 
                 // 統計情報カード
                 StatisticsCardView(
@@ -50,6 +51,8 @@ struct ContentView: View {
             }
             .navigationTitle("Compass for the Mind")
             .toolbar {
+                // TODO:YouTubeの視聴履歴を使いたい場合は
+                // ユーザーにGoogle Takeoutを使ってエクスポートしてもらい、それをアプリ内のAPIで読み込ませる。面倒だな。
                 ToolbarItemGroup(placement: .navigationBarLeading) {
                     Button(action: { showingCalendar = true }) {
                         Image(systemName: "calendar")
@@ -58,10 +61,11 @@ struct ContentView: View {
                 }
                 
                 ToolbarItemGroup(placement: .navigationBarTrailing) {
-                    Button(action: { showingAIAnalysis = true }) {
-                        Image(systemName: "brain.head.profile")
-                            .font(.title2)
-                    }
+                    // TODO:OpenAI仕様にお金がかかる問題をクリアすれば解放予定
+                    // Button(action: { showingAIAnalysis = true }) {
+                    //     Image(systemName: "brain.head.profile")
+                    //         .font(.title2)
+                    // }
 
                     Button(action: { showingSettings = true }) {
                         Image(systemName: "line.horizontal.3")
@@ -114,10 +118,11 @@ struct ContentView: View {
                 )
             }
         }
-        .sheet(isPresented: $showingAIAnalysis) {
-            AIAnalysisView()
-                .environment(\.managedObjectContext, viewContext)
-        }
+        // TODO:OpenAI仕様にお金がかかる問題をクリアすれば解放予定
+        // .sheet(isPresented: $showingAIAnalysis) {
+        //     AIAnalysisView()
+        //         .environment(\.managedObjectContext, viewContext)
+        // }
     }
     
     // MARK: - Computed Properties

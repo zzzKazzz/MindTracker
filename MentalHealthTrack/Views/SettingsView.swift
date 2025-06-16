@@ -10,14 +10,26 @@ struct SettingsView: View {
         hour: 18, minute: 0)
     @AppStorage("notificationInterval") private var notificationInterval = 60
     @AppStorage("notificationsEnabled") private var notificationsEnabled = false
+    @AppStorage("selectedWeekdays") private var selectedWeekdaysData = Data()
 
     let notificationManager = NotificationManager.shared
     @State private var notificationSchedule: [Date] = []
+    @State private var selectedWeekdays: Set<Int> = []
 
     private let intervalOptions = [
         (30, "30分ごと"),
         (60, "1時間ごと"),
         (120, "2時間ごと"),
+    ]
+
+    private let weekdays = [
+        (1, "S", "日"),
+        (2, "M", "月"),
+        (3, "T", "火"),
+        (4, "W", "水"),
+        (5, "T", "木"),
+        (6, "F", "金"),
+        (7, "S", "土")
     ]
 
     static func createTime(hour: Int, minute: Int) -> Date {
@@ -50,6 +62,9 @@ struct SettingsView: View {
             }
         }
         .presentationDragIndicator(.visible)
+        .onAppear {
+            loadSelectedWeekdays()
+        }
     }
 
     // MARK: - Sections
@@ -103,6 +118,40 @@ struct SettingsView: View {
             }
             .onChange(of: notificationInterval) { _ in
                 scheduleNotifications()
+            }
+
+            // 曜日選択UI
+            VStack(alignment: .leading, spacing: 8) {
+                Text("通知する曜日")
+                    .font(.headline)
+                
+                HStack(spacing: 12) {
+                    ForEach(weekdays, id: \.0) { weekday, shortName, fullName in
+                        Button(action: {
+                            toggleWeekday(weekday)
+                        }) {
+                            Text(shortName)
+                                .font(.system(size: 16, weight: .medium))
+                                .frame(width: 32, height: 32)
+                                .background(
+                                    selectedWeekdays.contains(weekday) 
+                                        ? Color.blue 
+                                        : Color.gray.opacity(0.2)
+                                )
+                                .foregroundColor(
+                                    selectedWeekdays.contains(weekday) 
+                                        ? .white 
+                                        : .primary
+                                )
+                                .clipShape(Circle())
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    }
+                }
+                
+                Text(formatSelectedWeekdays())
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             }
 
             VStack(alignment: .leading, spacing: 4) {
@@ -180,6 +229,44 @@ struct SettingsView: View {
     }
 
     // MARK: - Helper Methods
+
+    private func toggleWeekday(_ weekday: Int) {
+        if selectedWeekdays.contains(weekday) {
+            selectedWeekdays.remove(weekday)
+        } else {
+            selectedWeekdays.insert(weekday)
+        }
+        saveSelectedWeekdays()
+        scheduleNotifications()
+    }
+
+    private func loadSelectedWeekdays() {
+        if let decoded = try? JSONDecoder().decode(Set<Int>.self, from: selectedWeekdaysData) {
+            selectedWeekdays = decoded
+        } else {
+            // デフォルトは平日（月〜金）
+            selectedWeekdays = Set([2, 3, 4, 5, 6])
+            saveSelectedWeekdays()
+        }
+    }
+
+    private func saveSelectedWeekdays() {
+        if let encoded = try? JSONEncoder().encode(selectedWeekdays) {
+            selectedWeekdaysData = encoded
+        }
+    }
+
+    private func formatSelectedWeekdays() -> String {
+        if selectedWeekdays.isEmpty {
+            return "曜日が選択されていません"
+        }
+        
+        let selectedNames = weekdays
+            .filter { selectedWeekdays.contains($0.0) }
+            .map { $0.2 }
+        
+        return selectedNames.joined(separator: "、")
+    }
 
     private func scheduleNotifications() {
         guard notificationsEnabled else { return }
