@@ -2,9 +2,19 @@ import SwiftUI
 import CoreData
 import UserNotifications
 
+// エクスポート用のデータ構造
+struct ExportEntry: Codable {
+    let date: String
+    let time: String
+    let mood: String
+    let activity: String
+    let feeling: String
+}
+
 struct ContentView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @EnvironmentObject var appState: AppState
+    @StateObject private var healthKitManager = HealthKitManager.shared
     @FetchRequest(
         sortDescriptors: [NSSortDescriptor(keyPath: \MindfulnessData.timestamp, ascending: false)],
         animation: .default)
@@ -17,6 +27,8 @@ struct ContentView: View {
     @State private var showingDateEntries = false
     @State private var showingAIAnalysis = false
     @State private var notificationStatus: UNAuthorizationStatus = .notDetermined
+    @State private var showingExportAlert = false
+    @State private var isExporting = false
     
     // SettingsViewと同じ設定を参照
     @AppStorage("notificationsEnabled") private var notificationsEnabled = false
@@ -32,7 +44,9 @@ struct ContentView: View {
                 // 統計情報カード
                 StatisticsCardView(
                     todayCount: todayEntriesCount(),
-                    totalCount: entries.count
+                    totalCount: entries.count,
+                    todaySteps: healthKitManager.todaySteps,
+                    isHealthAuthorized: healthKitManager.isAuthorized
                 )
                 
                 // 履歴一覧
@@ -60,12 +74,18 @@ struct ContentView: View {
                 }
                 
                 ToolbarItemGroup(placement: .navigationBarTrailing) {
-                    // TODO:OpenAI仕様にお金がかかる問題をクリアすれば解放予定
-                    // Button(action: { showingAIAnalysis = true }) {
-                    //     Image(systemName: "brain.head.profile")
-                    //         .font(.title2)
-                    // }
-
+                    // TODO:規模がデカくなったらファイル化が必要
+                    // エクスポートボタン
+                    Button(action: { exportData() }) {
+                        if isExporting {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                        } else {
+                            Image(systemName: "square.and.arrow.up")
+                                .font(.title2)
+                        }
+                    }
+                    .disabled(isExporting)
                     Button(action: { showingSettings = true }) {
                         Image(systemName: "line.horizontal.3")
                             .font(.title2)
@@ -76,7 +96,13 @@ struct ContentView: View {
         .onAppear {
             // アプリ起動時に通知状態をチェック
             checkNotificationStatus()
-            
+
+            // HealthKitデータを更新
+            if healthKitManager.isAuthorized {
+                healthKitManager.fetchTodaySteps()
+                healthKitManager.fetchWeeklySteps()
+            }
+
             // 1秒後に権限リクエスト（ユーザーエクスペリエンス向上のため）
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                 requestNotificationPermissionIfNeeded()
@@ -117,11 +143,11 @@ struct ContentView: View {
                 )
             }
         }
-        // TODO:OpenAI仕様にお金がかかる問題をクリアすれば解放予定
-        // .sheet(isPresented: $showingAIAnalysis) {
-        //     AIAnalysisView()
-        //         .environment(\.managedObjectContext, viewContext)
-        // }
+        .alert("データエクスポート完了", isPresented: $showingExportAlert) {
+        Button("OK") { }
+        } message: {
+            Text("記録データがクリップボードにコピーされました。")
+        }
     }
     
     // MARK: - Computed Properties
@@ -321,15 +347,105 @@ struct ContentView: View {
             }
         }
     }
+
+    private func exportData() {
+        // エクスポート開始
+        isExporting = true
+
+        // バックグラウンドで処理を実行
+        DispatchQueue.global(qos: .userInitiated).async {
+            // エクスポート用の日付フォーマッター
+            let exportDateFormatter: DateFormatter = {
+                let formatter = DateFormatter()
+                formatter.dateFormat = "yyyy-MM-dd"
+                return formatter
+            }()
+
+            let exportTimeFormatter: DateFormatter = {
+                let formatter = DateFormatter()
+                formatter.dateFormat = "HH:mm"
+                return formatter
+            }()
+
+            let exportEntries = Array(self.entries).map { entry in
+                let timestamp = entry.timestamp ?? Date()
+                let endTime = timestamp
+                let startTime = Calendar.current.date(byAdding: .minute, value: -30, to: endTime) ?? endTime
+
+                // 絵文字をenum名に変換
+                let moodString = self.convertEmojiToMoodName(entry.mood ?? "😐")
+
+                return ExportEntry(
+                    date: exportDateFormatter.string(from: timestamp),
+                    time: "\(exportTimeFormatter.string(from: startTime))-\(exportTimeFormatter.string(from: endTime))",
+                    mood: moodString,
+                    activity: entry.activity ?? "",
+                    feeling: entry.feelings ?? ""
+                )
+            }
+
+            do {
+                let encoder = JSONEncoder()
+                encoder.outputFormatting = .prettyPrinted
+                let jsonData = try encoder.encode(exportEntries)
+                if let jsonString = String(data: jsonData, encoding: .utf8) {
+                    // プロンプトを追加
+                    let analysisPrompt = """
+
+                    あなたは優秀なデータアナリスト兼心理コーチです。 以下の私の「支出履歴」「動画視聴履歴」「行動ログ」「日々の感情記録」などをもとに、 私自身も気づいていない価値観、性格傾向、無意識のパターンを分析してください。
+                    その上で、
+                    1. 私の幸福度が高くなる「時間・行動・環境・仕事」の特徴
+                    2. 逆に「自分に向いていない行動・場所・関わり方」
+                    3. 無意識に避けているが実は自分に合っているかもしれない選択肢
+                    4. 私の強み・弱みやユニークな資質、それがどのような仕事やライフスタイルで活きるか
+                    5. 私がより幸福度を最大化するための具体的アドバイスや問いかけ
+                    を、根拠（データのどの部分から読み取ったか、なぜそう推論したか）付きで教えてください。
+                    私が自分自身を「もっと深く理解」し、「今後の意思決定の質を上げる」ために役立つ内容にしてください。
+                    """
+
+                    let finalContent = jsonString + analysisPrompt
+
+                    // メインスレッドでUI更新
+                    DispatchQueue.main.async {
+                        UIPasteboard.general.string = finalContent
+                        self.isExporting = false
+                        self.showingExportAlert = true
+                        print("エクスポート完了: \(exportEntries.count)件の記録")
+                    }
+                }
+            } catch {
+                // エラー時もメインスレッドでUI更新
+                DispatchQueue.main.async {
+                    self.isExporting = false
+                    print("エクスポートエラー: \(error.localizedDescription)")
+                }
+            }
+        }
+    }
+
+    // 絵文字をenum名に変換するヘルパー関数
+    private func convertEmojiToMoodName(_ emoji: String) -> String {
+        switch emoji {
+        case "😊": return "veryHappy"
+        case "🙂": return "happy"
+        case "😐": return "neutral"
+        case "😔": return "sad"
+        case "😢": return "verySad"
+        default: return "neutral"
+        }
+    }
 }
 
 // MARK: - Subviews
 struct StatisticsCardView: View {
     let todayCount: Int
     let totalCount: Int
-    
+    let todaySteps: Int
+    let isHealthAuthorized: Bool
+
     var body: some View {
         VStack(spacing: 16) {
+            // 記録統計
             HStack {
                 VStack(alignment: .leading) {
                     Text("今日の記録")
@@ -354,6 +470,71 @@ struct StatisticsCardView: View {
             .padding()
             .background(Color(UIColor.systemGray6))
             .cornerRadius(12)
+
+            // ヘルスデータ
+            if isHealthAuthorized {
+                HStack {
+                    VStack(alignment: .leading) {
+                        HStack {
+                            Image(systemName: "figure.walk")
+                                .foregroundColor(.orange)
+                            Text("今日の歩数")
+                                .font(.headline)
+                                .fontWeight(.semibold)
+                        }
+                        Text("\(todaySteps.formatted())歩")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundColor(.orange)
+                    }
+                    Spacer()
+                    VStack(alignment: .trailing) {
+                        HStack {
+                            Image(systemName: "heart.fill")
+                                .foregroundColor(.red)
+                            Text("健康連携")
+                                .font(.headline)
+                                .fontWeight(.semibold)
+                        }
+                        Text("有効")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundColor(.red)
+                    }
+                }
+                .padding()
+                .background(Color(UIColor.systemGray6))
+                .cornerRadius(12)
+            } else {
+                HStack {
+                    VStack(alignment: .leading) {
+                        HStack {
+                            Image(systemName: "heart.slash")
+                                .foregroundColor(.gray)
+                            Text("ヘルスケア連携")
+                                .font(.headline)
+                                .fontWeight(.semibold)
+                        }
+                        Text("未許可")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundColor(.gray)
+                    }
+                    Spacer()
+                    Button("許可する") {
+                        HealthKitManager.shared.requestAuthorization()
+                    }
+                    .font(.caption)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color.blue)
+                    .foregroundColor(.white)
+                    .cornerRadius(8)
+                }
+                .padding()
+                .background(Color(UIColor.systemGray6))
+                .cornerRadius(12)
+            }
         }
         .padding(.horizontal)
     }

@@ -10,6 +10,8 @@ struct MindfulnessEntryView: View {
     @State private var feelingText: String = ""
     @State private var selectedMood: Mood = .neutral
     @State private var entryTime = Date()
+    @State private var showingActivityInfo = false
+    @State private var showingFeelingInfo = false
 
     enum Mood: String, CaseIterable {
         case veryHappy = "😊"
@@ -96,6 +98,12 @@ struct MindfulnessEntryView: View {
                                 Text("この30分間の活動")
                                     .font(.headline)
                                     .fontWeight(.semibold)
+                                Spacer()
+                                Button(action: { showingActivityInfo = true }) {
+                                    Image(systemName: "info.circle")
+                                        .foregroundColor(.blue)
+                                        .font(.title3)
+                                }
                             }
 
                             VStack(alignment: .leading, spacing: 8) {
@@ -193,6 +201,12 @@ struct MindfulnessEntryView: View {
                                 Text("感情の詳細")
                                     .font(.headline)
                                     .fontWeight(.semibold)
+                                Spacer()
+                                Button(action: { showingFeelingInfo = true }) {
+                                    Image(systemName: "info.circle")
+                                        .foregroundColor(.green)
+                                        .font(.title3)
+                                }
                             }
 
                             VStack(alignment: .leading, spacing: 8) {
@@ -287,6 +301,16 @@ struct MindfulnessEntryView: View {
             .background(Color(UIColor.systemGroupedBackground))
             }
             .navigationBarHidden(true)
+        }
+        .alert("活動記録のヒント", isPresented: $showingActivityInfo) {
+            Button("OK") { }
+        } message: {
+            Text("\n\n例：\n• 仕事でメールを確認していた\n• 友人と電話で話していた\n• 散歩をしていた\n• 読書をしていた\n\n後で振り返ったときに、どんな活動が自分の気分に影響するかがわかります。")
+        }
+        .alert("感情記録のヒント", isPresented: $showingFeelingInfo) {
+            Button("OK") { }
+        } message: {
+            Text("\n\n例：\n• 体の感覚はどうだったか\n• 頭に浮かんだ考えや思い\n• 周りの環境や状況\n\n感情を言葉にすることで、自分の心の動きがより明確になります。")
         }
     }
 
