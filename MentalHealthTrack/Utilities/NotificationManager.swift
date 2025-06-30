@@ -39,19 +39,22 @@ class NotificationManager: ObservableObject {
     func scheduleUserDefinedNotifications() {
         // UserDefaultsから設定を読み込み
         let notificationsEnabled = UserDefaults.standard.bool(forKey: "notificationsEnabled")
-        
+
         guard notificationsEnabled else {
             print("通知が無効になっています")
             cancelNotifications()
             return
         }
-        
+
         let startTime = UserDefaults.standard.object(forKey: "notificationStartTime") as? Date ?? createDefaultTime(hour: 9, minute: 0)
         let endTime = UserDefaults.standard.object(forKey: "notificationEndTime") as? Date ?? createDefaultTime(hour: 18, minute: 0)
         let interval = UserDefaults.standard.integer(forKey: "notificationInterval")
         let actualInterval = interval > 0 ? interval : 60 // デフォルト1時間
-        
-        scheduleIntervalNotifications(startTime: startTime, endTime: endTime, interval: actualInterval)
+
+        // 曜日設定を読み込み
+        let selectedWeekdays = loadSelectedWeekdays()
+
+        scheduleIntervalNotifications(startTime: startTime, endTime: endTime, interval: actualInterval, selectedWeekdays: selectedWeekdays)
     }
     
     func scheduleIntervalNotifications(startTime: Date, endTime: Date, interval: Int, selectedWeekdays: Set<Int>? = nil) {
@@ -186,13 +189,27 @@ class NotificationManager: ObservableObject {
     }
     
     // MARK: - Helper Methods
-    
+
     private func createDefaultTime(hour: Int, minute: Int) -> Date {
         let calendar = Calendar.current
         var components = DateComponents()
         components.hour = hour
         components.minute = minute
         return calendar.date(from: components) ?? Date()
+    }
+
+    private func loadSelectedWeekdays() -> Set<Int>? {
+        guard let selectedWeekdaysData = UserDefaults.standard.data(forKey: "selectedWeekdays") else {
+            // デフォルトは平日（月〜金）
+            return Set([2, 3, 4, 5, 6])
+        }
+
+        if let decoded = try? JSONDecoder().decode(Set<Int>.self, from: selectedWeekdaysData) {
+            return decoded.isEmpty ? nil : decoded
+        }
+
+        // デコードに失敗した場合はデフォルト値
+        return Set([2, 3, 4, 5, 6])
     }
     
     // MARK: - Test Notifications

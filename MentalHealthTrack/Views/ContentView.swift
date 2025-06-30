@@ -9,6 +9,7 @@ struct ExportEntry: Codable {
     let mood: String
     let activity: String
     let feeling: String
+    let tags: String
 }
 
 struct ContentView: View {
@@ -20,16 +21,20 @@ struct ContentView: View {
         animation: .default)
     private var entries: FetchedResults<MindfulnessData>
     
+    // 新規記録画面の表示状態を管理
     @State private var showingEntryView = false
-    @State private var showingSettings = false
-    @State private var showingCalendar = false
-    @State private var selectedDate: Date? = nil
-    @State private var showingDateEntries = false
-    @State private var showingAIAnalysis = false
+    // 通知権限の現在の状態を管理
     @State private var notificationStatus: UNAuthorizationStatus = .notDetermined
+    // データエクスポート完了アラートの表示状態を管理
     @State private var showingExportAlert = false
+    // データエクスポート処理中の状態を管理
     @State private var isExporting = false
-    
+    // 日付ベースのページング用の現在表示日付を管理
+    @State private var currentDate = Date()
+    // ビューの強制更新用
+    @State private var refreshTrigger = false
+    // 日付更新用のタイマー
+    @State private var dateUpdateTimer: Timer?
     // SettingsViewと同じ設定を参照
     @AppStorage("notificationsEnabled") private var notificationsEnabled = false
     
@@ -48,33 +53,23 @@ struct ContentView: View {
                     todaySteps: healthKitManager.todaySteps,
                     isHealthAuthorized: healthKitManager.isAuthorized
                 )
-                
-                // 履歴一覧
-                if entries.isEmpty {
-                    EmptyStateView()
-                } else {
-                    EntriesListView(entries: Array(entries)) { offsets in
+                // TODO:日付ベースの履歴表示
+                DailyEntriesPageView(
+                    currentDate: $currentDate,
+                    allEntries: Array(entries),
+                    onDelete: { offsets in
                         deleteEntries(offsets: offsets)
-                    }
-                }
+                    },
+                    refreshTrigger: refreshTrigger
+                )
                 // 今すぐ記録ボタン
                 RecordButtonView {
                     showingEntryView = true
                 }
             }
-            .navigationTitle("Compass for the Mind")
+            .navigationTitle("Footstep of the Mind")
             .toolbar {
-                // TODO:YouTubeの視聴履歴を使いたい場合は
-                // ユーザーにGoogle Takeoutを使ってエクスポートしてもらい、それをアプリ内のAPIで読み込ませる。面倒だな。
-                ToolbarItemGroup(placement: .navigationBarLeading) {
-                    Button(action: { showingCalendar = true }) {
-                        Image(systemName: "calendar")
-                            .font(.title2)
-                    }
-                }
-                
                 ToolbarItemGroup(placement: .navigationBarTrailing) {
-                    // TODO:規模がデカくなったらファイル化が必要
                     // エクスポートボタン
                     Button(action: { exportData() }) {
                         if isExporting {
@@ -86,27 +81,28 @@ struct ContentView: View {
                         }
                     }
                     .disabled(isExporting)
-                    Button(action: { showingSettings = true }) {
-                        Image(systemName: "line.horizontal.3")
-                            .font(.title2)
-                    }
                 }
             }
         }
         .onAppear {
             // アプリ起動時に通知状態をチェック
             checkNotificationStatus()
-
             // HealthKitデータを更新
             if healthKitManager.isAuthorized {
                 healthKitManager.fetchTodaySteps()
                 healthKitManager.fetchWeeklySteps()
             }
-
             // 1秒後に権限リクエスト（ユーザーエクスペリエンス向上のため）
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                 requestNotificationPermissionIfNeeded()
             }
+            // 日付更新タイマーを開始
+            startDateUpdateTimer()
+        }
+        .onDisappear {
+            // タイマーを停止
+            dateUpdateTimer?.invalidate()
+            dateUpdateTimer = nil
         }
         // 通知タップで記録画面を開く処理
         .onChange(of: appState.shouldShowEntryView) { oldValue, newValue in
@@ -125,31 +121,26 @@ struct ContentView: View {
             MindfulnessEntryView()
                 .environment(\.managedObjectContext, viewContext)
         }
-        .sheet(isPresented: $showingSettings) {
-            SettingsView()
-        }
-        .sheet(isPresented: $showingCalendar) {
-            CalendarView(entries: Array(entries)) { date in
-                selectedDate = date
-                showingCalendar = false
-                showingDateEntries = true
-            }
-        }
-        .sheet(isPresented: $showingDateEntries) {
-            if let selectedDate = selectedDate {
-                DateEntriesView(
-                    date: selectedDate,
-                    entries: entriesForDate(selectedDate)
-                )
-            }
-        }
+
+
         .alert("データエクスポート完了", isPresented: $showingExportAlert) {
         Button("OK") { }
         } message: {
             Text("記録データがクリップボードにコピーされました。")
         }
+        .onReceive(NotificationCenter.default.publisher(for: .NSManagedObjectContextDidSave)) { _ in
+            // CoreDataの変更通知を受け取った時にビューを更新
+            refreshTrigger.toggle()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+            // アプリがフォアグラウンドに戻った時に日付をチェック
+            checkAndUpdateCurrentDate()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)) { _ in
+            // 日付が変わった時に現在日付を更新
+            checkAndUpdateCurrentDate()
+        }
     }
-    
     // MARK: - Computed Properties
     private var notificationStatusText: String {
         switch notificationStatus {
@@ -161,8 +152,38 @@ struct ContentView: View {
         @unknown default: return "不明"
         }
     }
-    
     // MARK: - Private Methods
+
+    // 日付更新タイマーを開始
+    private func startDateUpdateTimer() {
+        // 既存のタイマーがあれば停止
+        dateUpdateTimer?.invalidate()
+
+        // 1分ごとに日付をチェック
+        dateUpdateTimer = Timer.scheduledTimer(withTimeInterval: 60.0, repeats: true) { _ in
+            checkAndUpdateCurrentDate()
+        }
+    }
+
+    // 現在日付をチェックして必要に応じて更新
+    private func checkAndUpdateCurrentDate() {
+        let now = Date()
+        let calendar = Calendar.current
+
+        // 現在表示している日付が今日で、実際の今日と異なる場合は更新
+        if calendar.isDateInToday(currentDate) && !calendar.isDate(currentDate, inSameDayAs: now) {
+            print("📅 日付が変更されました。currentDateを更新します: \(DateFormatters.dateOnly.string(from: currentDate)) -> \(DateFormatters.dateOnly.string(from: now))")
+            withAnimation(.easeInOut(duration: 0.3)) {
+                currentDate = now
+            }
+            // HealthKitデータも更新
+            if healthKitManager.isAuthorized {
+                healthKitManager.fetchTodaySteps()
+                healthKitManager.fetchWeeklySteps()
+            }
+        }
+    }
+
     private func checkNotificationStatus() {
         UNUserNotificationCenter.current().getNotificationSettings { settings in
             DispatchQueue.main.async {
@@ -174,7 +195,6 @@ struct ContentView: View {
             }
         }
     }
-    
     private func requestNotificationPermissionIfNeeded() {
         // 現在の通知ステータスを確認
         UNUserNotificationCenter.current().getNotificationSettings { settings in
@@ -196,10 +216,8 @@ struct ContentView: View {
             }
         }
     }
-    
     private func requestNotificationPermission() {
-        let options: UNAuthorizationOptions = [.alert, .badge, .sound]
-        
+        let options: UNAuthorizationOptions = [.alert, .badge, .sound]   
         UNUserNotificationCenter.current().requestAuthorization(options: options) { granted, error in
             DispatchQueue.main.async {
                 if let error = error {
@@ -230,14 +248,12 @@ struct ContentView: View {
     private func scheduleReminderNotifications() {
         // 既存の通知をクリア
         UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
-        
         // 複数時間帯でのリマインダー設定
         let reminderTimes = [
-            (hour: 9, minute: 0, message: "おはようございます！今朝の気持ちはいかがですか？"),
-            (hour: 14, minute: 0, message: "午後の一息、今の気持ちを記録しませんか？"),
+            (hour: 9, minute: 0, message: "おはようございます！☀️今日も一日元気よく!"),
+            (hour: 14, minute: 0, message: "午後の一息にサクッと今の気持ちを記録しましょう!"),
             (hour: 20, minute: 0, message: "一日お疲れさまでした。今日の気持ちを振り返ってみましょう")
         ]
-        
         for (index, time) in reminderTimes.enumerated() {
             let content = UNMutableNotificationContent()
             content.title = "気持ちの記録"
@@ -335,6 +351,8 @@ struct ContentView: View {
     private func entriesForDate(_ date: Date) -> [MindfulnessData] {
         return MindfulnessDataHelper.entriesForDate(date, from: Array(entries))
     }
+
+
     
     private func deleteEntries(offsets: IndexSet) {
         withAnimation {
@@ -380,7 +398,8 @@ struct ContentView: View {
                     time: "\(exportTimeFormatter.string(from: startTime))-\(exportTimeFormatter.string(from: endTime))",
                     mood: moodString,
                     activity: entry.activity ?? "",
-                    feeling: entry.feelings ?? ""
+                    feeling: entry.feelings ?? "",
+                    tags: entry.tags ?? ""
                 )
             }
 
@@ -423,15 +442,26 @@ struct ContentView: View {
         }
     }
 
-    // 絵文字をenum名に変換するヘルパー関数
-    private func convertEmojiToMoodName(_ emoji: String) -> String {
-        switch emoji {
-        case "😊": return "veryHappy"
-        case "🙂": return "happy"
-        case "😐": return "neutral"
-        case "😔": return "sad"
-        case "😢": return "verySad"
-        default: return "neutral"
+    // 気分文字列をenum名に変換するヘルパー関数
+    private func convertEmojiToMoodName(_ moodString: String) -> String {
+        let mood = getMoodFromString(moodString)
+        switch mood {
+        case .veryHappy: return "veryHappy"
+        case .happy: return "happy"
+        case .neutral: return "neutral"
+        case .sad: return "sad"
+        case .verySad: return "verySad"
+        }
+    }
+
+    // 文字列から気分を取得するヘルパー関数（ContentView用）
+    private func getMoodFromString(_ moodString: String) -> Mood {
+        // まず新しい形式（rawValue）で検索
+        if let mood = Mood.allCases.first(where: { $0.rawValue == moodString }) {
+            return mood
+        } else {
+            // 絵文字形式の場合は変換
+            return Mood.fromEmoji(moodString)
         }
     }
 }
@@ -442,6 +472,17 @@ struct StatisticsCardView: View {
     let totalCount: Int
     let todaySteps: Int
     let isHealthAuthorized: Bool
+    let onExport: (() -> Void)?
+    let isExporting: Bool
+
+    init(todayCount: Int, totalCount: Int, todaySteps: Int, isHealthAuthorized: Bool, onExport: (() -> Void)? = nil, isExporting: Bool = false) {
+        self.todayCount = todayCount
+        self.totalCount = totalCount
+        self.todaySteps = todaySteps
+        self.isHealthAuthorized = isHealthAuthorized
+        self.onExport = onExport
+        self.isExporting = isExporting
+    }
 
     var body: some View {
         VStack(spacing: 16) {
@@ -465,6 +506,21 @@ struct StatisticsCardView: View {
                         .font(.title2)
                         .fontWeight(.bold)
                         .foregroundColor(.green)
+                }
+
+                // エクスポートボタン
+                if let onExport = onExport {
+                    Button(action: onExport) {
+                        if isExporting {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                        } else {
+                            Image(systemName: "square.and.arrow.up")
+                                .font(.title2)
+                        }
+                    }
+                    .disabled(isExporting)
+                    .padding(.leading, 8)
                 }
             }
             .padding()
@@ -542,25 +598,28 @@ struct StatisticsCardView: View {
 
 struct RecordButtonView: View {
     let action: () -> Void
-    
     var body: some View {
         Button(action: action) {
-            HStack {
+            HStack(spacing: 12) {
                 Image(systemName: "plus.circle.fill")
+                    .font(.title3)
                 Text("今の気持ちを記録する")
                     .fontWeight(.semibold)
+                    .font(.body)
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 16)
+            .padding(.vertical, 18)
             .background(
-                LinearGradient(
-                    gradient: Gradient(colors: [Color.blue, Color.blue.opacity(0.8)]),
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color.blue)
             )
             .foregroundColor(.white)
-            .cornerRadius(12)
+            .shadow(color: Color.blue.opacity(0.3), radius: 8, x: 0, y: 4)
+            .scaleEffect(1.0)
+            .animation(
+                .easeInOut(duration: 0.2),
+                value: false
+            )
         }
         .padding(.horizontal)
     }
@@ -584,14 +643,186 @@ struct EmptyStateView: View {
     }
 }
 
+struct DailyEntriesPageView: View {
+    @Binding var currentDate: Date
+    let allEntries: [MindfulnessData]
+    let onDelete: (IndexSet) -> Void
+    let refreshTrigger: Bool
+
+    private let calendar = Calendar.current
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // 日付ナビゲーションヘッダー
+            DateNavigationHeader(currentDate: $currentDate)
+
+            // 現在の日付のエントリ表示（高さ固定）
+            DailyEntriesView(
+                date: currentDate,
+                entries: entriesForDate(currentDate),
+                onDelete: onDelete,
+                refreshTrigger: refreshTrigger
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+
+    private func entriesForDate(_ date: Date) -> [MindfulnessData] {
+        return MindfulnessDataHelper.entriesForDate(date, from: allEntries)
+    }
+}
+
+struct DateNavigationHeader: View {
+    @Binding var currentDate: Date
+    private let calendar = Calendar.current
+
+    // 次の日に移動可能かどうかを判定
+    private var canMoveToNextDay: Bool {
+        let nextDate = calendar.date(byAdding: .day, value: 1, to: currentDate) ?? currentDate
+        return nextDate <= Date()
+    }
+
+    var body: some View {
+        HStack {
+            Button(action: {
+                withAnimation(.spring(response: 0.5, dampingFraction: 0.8, blendDuration: 0)) {
+                    currentDate = calendar.date(byAdding: .day, value: -1, to: currentDate) ?? currentDate
+                }
+            }) {
+                Image(systemName: "chevron.left")
+                    .font(.title2)
+                    .foregroundColor(.blue)
+            }
+            .buttonStyle(PlainButtonStyle()) // タップ時のハイライトを無効化
+
+            Spacer()
+
+            VStack(spacing: 2) {
+                Text(DateFormatters.dateOnly.string(from: currentDate))
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                    .animation(.spring(response: 0.3, dampingFraction: 0.8), value: currentDate)
+
+                if calendar.isDateInToday(currentDate) {
+                    Text("今日")
+                        .font(.caption)
+                        .foregroundColor(.blue)
+                        .fontWeight(.medium)
+                        .transition(.opacity.combined(with: .scale))
+                } else if calendar.isDateInYesterday(currentDate) {
+                    Text("昨日")
+                        .font(.caption)
+                        .foregroundColor(.orange)
+                        .fontWeight(.medium)
+                        .transition(.opacity.combined(with: .scale))
+                } else if calendar.isDateInTomorrow(currentDate) {
+                    Text("明日")
+                        .font(.caption)
+                        .foregroundColor(.green)
+                        .fontWeight(.medium)
+                        .transition(.opacity.combined(with: .scale))
+                }
+            }
+
+            Spacer()
+
+            Button(action: {
+                let nextDate = calendar.date(byAdding: .day, value: 1, to: currentDate) ?? currentDate
+                // 未来の日付には移動しない（今日まで）
+                if nextDate <= Date() {
+                    withAnimation(.spring(response: 0.5, dampingFraction: 0.8, blendDuration: 0)) {
+                        currentDate = nextDate
+                    }
+                }
+            }) {
+                Image(systemName: "chevron.right")
+                    .font(.title2)
+                    .foregroundColor(canMoveToNextDay ? .blue : .gray)
+            }
+            .buttonStyle(PlainButtonStyle()) // タップ時のハイライトを無効化
+            .disabled(!canMoveToNextDay)
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 8)
+        .background(Color(UIColor.systemGray6))
+    }
+}
+
+struct DailyEntriesView: View {
+    let date: Date
+    let entries: [MindfulnessData]
+    let onDelete: (IndexSet) -> Void
+    let refreshTrigger: Bool
+    @Environment(\.managedObjectContext) private var viewContext
+
+    var body: some View {
+        GeometryReader { geometry in
+            if entries.isEmpty {
+                DailyEmptyStateView(date: date)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                List {
+                    ForEach(entries.indices, id: \.self) { index in
+                        EntryRowView(entry: entries[index], viewContext: viewContext, refreshTrigger: refreshTrigger)
+                    }
+                    .onDelete(perform: onDelete)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .frame(minHeight: 400) // 最小高さを設定
+    }
+}
+
+struct DailyEmptyStateView: View {
+    let date: Date
+    private let calendar = Calendar.current
+
+    var body: some View {
+        VStack(spacing: 16) {
+            Spacer()
+
+            Image(systemName: "heart.text.square")
+                .font(.system(size: 48))
+                .foregroundColor(.gray)
+
+            if calendar.isDateInToday(date) {
+                Text("今日はまだ記録がありません")
+                    .font(.headline)
+                    .foregroundColor(.secondary)
+                Text("「今の気持ちを記録する」ボタンから\n最初の記録を始めましょう")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            } else if date > Date() {
+                Text("未来の記録はありません")
+                    .font(.headline)
+                    .foregroundColor(.secondary)
+            } else {
+                Text("この日の記録はありません")
+                    .font(.headline)
+                    .foregroundColor(.secondary)
+                Text(DateFormatters.dateOnly.string(from: date))
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
 struct EntriesListView: View {
     let entries: [MindfulnessData]
     let onDelete: (IndexSet) -> Void
-    
+    let refreshTrigger: Bool
+    @Environment(\.managedObjectContext) private var viewContext
+
     var body: some View {
         List {
             ForEach(entries.indices, id: \.self) { index in
-                EntryRowView(entry: entries[index])
+                EntryRowView(entry: entries[index], viewContext: viewContext, refreshTrigger: refreshTrigger)
             }
             .onDelete(perform: onDelete)
         }
@@ -600,12 +831,24 @@ struct EntriesListView: View {
 
 struct EntryRowView: View {
     let entry: MindfulnessData
-    
+    let viewContext: NSManagedObjectContext
+    let refreshTrigger: Bool
+    @State private var showingEditView = false
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text(entry.mood ?? "😐")
-                    .font(.title2)
+                // 気分アイコン表示
+                if let moodString = entry.mood {
+                    let mood = getMoodFromString(moodString)
+                    Image(systemName: mood.icon)
+                        .font(.title2)
+                        .foregroundColor(mood.color)
+                } else {
+                    Image(systemName: Mood.neutral.icon)
+                        .font(.title2)
+                        .foregroundColor(Mood.neutral.color)
+                }
                 VStack(alignment: .leading, spacing: 2) {
                     Text(DateFormatters.dateTime.string(from: entry.timestamp ?? Date()))
                         .font(.caption)
@@ -615,18 +858,101 @@ struct EntryRowView: View {
                         .foregroundColor(.secondary)
                 }
                 Spacer()
+
+                // 活動ジャンル表示
+                if let genreString = entry.genre, !genreString.isEmpty {
+                    HStack(spacing: 4) {
+                        Image(systemName: genreIcon(for: genreString))
+                            .font(.caption)
+                            .foregroundColor(genreColor(for: genreString))
+                        Text(genreString)
+                            .font(.caption2)
+                            .fontWeight(.medium)
+                            .foregroundColor(genreColor(for: genreString))
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(genreColor(for: genreString).opacity(0.1))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(genreColor(for: genreString).opacity(0.3), lineWidth: 1)
+                    )
+                }
             }
-            
+
             Text("活動: \(entry.activity ?? "")")
                 .font(.subheadline)
                 .lineLimit(2)
-            
+
             Text("感情: \(entry.feelings ?? "")")
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .lineLimit(3)
+
+
         }
         .padding(.vertical, 4)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            showingEditView = true
+        }
+        .sheet(isPresented: $showingEditView) {
+            MindfulnessEditView(entry: entry)
+                .environment(\.managedObjectContext, viewContext)
+        }
+        .id("\(entry.objectID)-\(refreshTrigger ? "1" : "0")")
+    }
+
+    // 文字列から気分を取得するヘルパー関数
+    private func getMoodFromString(_ moodString: String) -> Mood {
+        // まず新しい形式（rawValue）で検索
+        if let mood = Mood.allCases.first(where: { $0.rawValue == moodString }) {
+            return mood
+        } else {
+            // 絵文字形式の場合は変換
+            return Mood.fromEmoji(moodString)
+        }
+    }
+
+    // ジャンルに対応するアイコンを返すヘルパー関数
+    private func genreIcon(for genreString: String) -> String {
+        switch genreString {
+        case "仕事": return "briefcase.fill"
+        case "エンタメ": return "tv.fill"
+        case "エクササイズ": return "figure.run"
+        case "仮眠": return "bed.double.fill"
+        case "移動": return "car.fill"
+        case "食事": return "fork.knife"
+        case "勉強": return "book.fill"
+        case "読書": return "book.closed.fill"
+        case "創作": return "paintbrush.fill"
+        case "家事": return "house.fill"
+        case "ソーシャライズ": return "person.2.fill"
+        case "リラックス": return "leaf.fill"
+        default: return "ellipsis.circle.fill"
+        }
+    }
+
+    // ジャンルに対応する色を返すヘルパー関数
+    private func genreColor(for genreString: String) -> Color {
+        switch genreString {
+        case "仕事": return .blue
+        case "エンタメ": return .purple
+        case "エクササイズ": return .green
+        case "仮眠": return .indigo
+        case "移動": return .orange
+        case "食事": return .red
+        case "勉強": return .cyan
+        case "読書": return .teal
+        case "創作": return .yellow
+        case "家事": return .brown
+        case "ソーシャライズ": return .pink
+        case "リラックス": return .mint
+        default: return .gray
+        }
     }
 }
 
@@ -636,31 +962,5 @@ struct ContentView_Previews: PreviewProvider {
         ContentView()
             .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
             .environmentObject(AppState())
-    }
-}
-
-// 6. 通知権限確認用の関数も追加
-extension ContentView {
-    private func debugNotificationSettings() {
-        UNUserNotificationCenter.current().getNotificationSettings { settings in
-            DispatchQueue.main.async {
-                print("🔔 === 通知設定デバッグ情報 ===")
-                print("🔔 認証状態: \(settings.authorizationStatus.rawValue)")
-                print("🔔 アラート設定: \(settings.alertSetting.rawValue)")
-                print("🔔 サウンド設定: \(settings.soundSetting.rawValue)")
-                print("🔔 バッジ設定: \(settings.badgeSetting.rawValue)")
-                print("🔔 通知センター設定: \(settings.notificationCenterSetting.rawValue)")
-                print("🔔 ロック画面設定: \(settings.lockScreenSetting.rawValue)")
-                print("🔔 ===========================")
-            }
-        }
-        // 保留中の通知も確認
-        UNUserNotificationCenter.current().getPendingNotificationRequests { requests in
-            print("🔔 保留中の通知数: \(requests.count)")
-            for request in requests {
-                print("🔔 通知ID: \(request.identifier)")
-                print("🔔 タイトル: \(request.content.title)")
-            }
-        }
     }
 }

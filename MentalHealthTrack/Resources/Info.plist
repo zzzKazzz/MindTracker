@@ -30,6 +30,8 @@
 	<string>定期的な心の健康チェックのために通知を使用します</string>
 	<key>NSUserNotificationsUsageDescription</key>
 	<string>定期的に気分や活動を記録するためのリマインダー通知を送信します。</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>購入履歴のスクリーンショットを選択して、購入記録と感情の関連を分析するために使用します。</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

@@ -18,48 +18,34 @@ struct CalendarView: View {
     }()
 
     var body: some View {
-        // Grabber（引っ張りハンドル）
-        HStack {
+        VStack(spacing: 0) {
+            // 月選択ヘッダー
+            MonthNavigationHeader(
+                selectedMonth: $selectedMonth,
+                dateFormatter: dateFormatter
+            )
+
+            // 曜日ヘッダー
+            WeekdayHeader()
+
+            // カレンダーグリッド
+            CalendarGrid(
+                selectedMonth: selectedMonth,
+                entries: entries,
+                selectedDate: selectedDate,
+                onDateTapped: { date in
+                    selectedDate = date
+                    onDateSelected(date)
+                }
+            )
+
             Spacer()
-            RoundedRectangle(cornerRadius: 2.5)
-                .fill(Color(UIColor.systemGray3))
-                .frame(width: 36, height: 5)
-                .padding(.top, 8)
-                .padding(.bottom, 4)
-            Spacer()
+
+            // 凡例
+            CalendarLegend()
         }
-        NavigationView {
-            VStack(spacing: 0) {
-                // 月選択ヘッダー
-                MonthNavigationHeader(
-                    selectedMonth: $selectedMonth,
-                    dateFormatter: dateFormatter
-                )
-
-                // 曜日ヘッダー
-                WeekdayHeader()
-
-                // カレンダーグリッド
-                CalendarGrid(
-                    selectedMonth: selectedMonth,
-                    entries: entries,
-                    selectedDate: selectedDate,
-                    onDateTapped: { date in
-                        selectedDate = date
-                        onDateSelected(date)
-                    }
-                )
-
-                Spacer()
-
-                // 凡例
-                CalendarLegend()
-            }
-            .navigationTitle("カレンダー")
-            .navigationBarTitleDisplayMode(.inline)
-            .offset(y: dragOffset.height)
-            .animation(.interactiveSpring(), value: dragOffset)
-        }
+        .offset(y: dragOffset.height)
+        .animation(.interactiveSpring(), value: dragOffset)
     }
 }
 

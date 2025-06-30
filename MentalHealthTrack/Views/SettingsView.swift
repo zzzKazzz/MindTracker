@@ -3,7 +3,6 @@ import SwiftUI
 import UserNotifications
 
 struct SettingsView: View {
-    @Environment(\.dismiss) private var dismiss
     @AppStorage("notificationStartTime") private var notificationStartTime = createTime(
         hour: 9, minute: 0)
     @AppStorage("notificationEndTime") private var notificationEndTime = createTime(
@@ -41,25 +40,14 @@ struct SettingsView: View {
     }
 
     var body: some View {
-        NavigationView {
-            Form {
-                notificationSection
+        Form {
+            notificationSection
 
-                if notificationsEnabled {
-                    notificationPreviewSection
-                }
+            if notificationsEnabled {
+                notificationPreviewSection
+            }
 
-                aboutSection
-            }
-            .navigationTitle("設定")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("完了") {
-                        dismiss()
-                    }
-                }
-            }
+            aboutSection
         }
         .presentationDragIndicator(.visible)
         .onAppear {

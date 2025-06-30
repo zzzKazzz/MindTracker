@@ -1,80 +1,46 @@
-import CoreData
 import SwiftUI
-import UIKit
+import CoreData
 
-struct MindfulnessEntryView: View {
+struct MindfulnessEditView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
     @StateObject private var keyboard = KeyboardResponder()
+
+    let entry: MindfulnessData
+
     @State private var activityText: String = ""
     @State private var feelingText: String = ""
     @State private var selectedMood: Mood = .neutral
     @State private var selectedGenre: Genre = .work
-    @State private var entryTime = Date()
+    @State private var showingDeleteAlert = false
     @State private var showingActivityInfo = false
     @State private var showingFeelingInfo = false
 
-
-
     var body: some View {
-        NavigationView {
+        ZStack {
+            Color(UIColor.systemGroupedBackground)
+                .ignoresSafeArea()
+
             ScrollViewReader { proxy in
                 ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
-                    // Grabber（引っ張りハンドル）
-                    HStack {
-                        Spacer()
-                        RoundedRectangle(cornerRadius: 2.5)
-                            .fill(Color(UIColor.systemGray3))
-                            .frame(width: 36, height: 5)
-                            .padding(.top, 8)
-                            .padding(.bottom, 4)
-                        Spacer()
-                    }
-                    // 改善されたヘッダー
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack {
-                            Circle()
-                                .fill(
-                                    LinearGradient(
-                                        gradient: Gradient(colors: [
-                                            Color.blue.opacity(0.6), Color.purple.opacity(0.6),
-                                        ]),
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                                .frame(width: 12, height: 12)
+                    LazyVStack(spacing: 32) {
+                        // Grabber（引っ張りハンドル）
+                        VStack(spacing: 16) {
+                            RoundedRectangle(cornerRadius: 2.5)
+                                .fill(Color(UIColor.systemGray3))
+                                .frame(width: 36, height: 5)
+                                .padding(.top, 8)
 
-                            Text("マインドフルネス・ジャーナル")
-                                .font(.title2)
-                                .fontWeight(.medium)
-                                .foregroundColor(.primary)
+                            // ヘッダー
+                            ZStack {
+                                Text("記録を編集")
+                                    .font(.headline)
+                                    .fontWeight(.semibold)
+                            }
+                            .padding(.horizontal)
                         }
 
-                        Text("今の気持ちを記録してみましょう")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-
-                        // 時間表示をもっとスタイリッシュに
-                        HStack {
-                            Image(systemName: "clock")
-                                .foregroundColor(.blue)
-                                .font(.caption)
-                            Text(timeRangeText())
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(Color.blue.opacity(0.1))
-                                .cornerRadius(8)
-                        }
-                    }
-                    .padding(.horizontal)
-                    .padding(.top, 4)  // grabberの分、上のパディングを少し減らす
-
-                    VStack(spacing: 28) {
-                        // ジャンル選択セクション
+                        // 活動ジャンル選択セクション
                         VStack(alignment: .leading, spacing: 16) {
                             HStack {
                                 Image(systemName: "tag.fill")
@@ -164,7 +130,7 @@ struct MindfulnessEntryView: View {
                                             RoundedRectangle(cornerRadius: 16)
                                                 .stroke(Color(UIColor.systemGray5), lineWidth: 1)
                                         )
-                                    
+
                                     if activityText.isEmpty {
                                         Text("何をしていましたか？")
                                             .foregroundColor(Color(UIColor.placeholderText))
@@ -268,7 +234,7 @@ struct MindfulnessEntryView: View {
                                             RoundedRectangle(cornerRadius: 16)
                                                 .stroke(Color(UIColor.systemGray5), lineWidth: 1)
                                         )
-                                    
+
                                     if feelingText.isEmpty {
                                         Text("どのように感じましたか？")
                                             .foregroundColor(Color(UIColor.placeholderText))
@@ -282,37 +248,33 @@ struct MindfulnessEntryView: View {
                         }
 
                         // 保存ボタン
-                        Button(action: saveEntry) {
-                            HStack(spacing: 12) {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .font(.title3)
-                                Text("記録を保存")
-                                    .fontWeight(.semibold)
-                                    .font(.body)
+                        Button(action: saveChanges) {
+                            HStack {
+                                Image(systemName: "checkmark.circle")
+                                Text("変更を保存")
                             }
                             .frame(maxWidth: .infinity)
-                            .padding(.vertical, 18)
-                            .background(
-                                LinearGradient(
-                                    gradient: Gradient(colors: [
-                                        activityText.isEmpty || feelingText.isEmpty
-                                            ? Color.gray.opacity(0.6) : Color.blue,
-                                        activityText.isEmpty || feelingText.isEmpty
-                                            ? Color.gray.opacity(0.4) : Color.blue.opacity(0.8),
-                                    ]),
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                            .foregroundColor(.white)
-                            .cornerRadius(16)
-                            .shadow(color: Color.blue.opacity(0.3), radius: 8, x: 0, y: 4)
-                            .scaleEffect(activityText.isEmpty || feelingText.isEmpty ? 0.98 : 1.0)
-                            .animation(
-                                .easeInOut(duration: 0.2),
-                                value: activityText.isEmpty || feelingText.isEmpty)
+                            .padding(.vertical, 12)
+                            .background(Color.blue.opacity(0.1))
+                            .foregroundColor(.blue)
+                            .cornerRadius(8)
                         }
                         .disabled(activityText.isEmpty || feelingText.isEmpty)
+
+                        // 削除ボタン
+                        Button(action: {
+                            showingDeleteAlert = true
+                        }) {
+                            HStack {
+                                Image(systemName: "trash")
+                                Text("記録を削除")
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(Color.red.opacity(0.1))
+                            .foregroundColor(.red)
+                            .cornerRadius(8)
+                        }
                     }
                     .padding(.horizontal)
                     .padding(.bottom, 32)
@@ -346,85 +308,100 @@ struct MindfulnessEntryView: View {
                 .padding(.bottom, keyboard.currentHeight)
             }
             .background(Color(UIColor.systemGroupedBackground))
-            }
             .navigationBarHidden(true)
+        }
+        .onAppear {
+            loadEntryData()
         }
         .alert("活動記録のヒント", isPresented: $showingActivityInfo) {
             Button("OK") { }
         } message: {
-            Text("• 仕事のメールを確認していた\n• 友人と電話で話していた\n• 散歩をしていた\n• 読書をしていた\n\n振り返った際に、どんな活動が自分の気分に影響するのか理解する手助けになります。")
+            Text("具体的な活動内容を記録することで、後で振り返りやすくなります。例：「プレゼン資料作成」「友人とカフェで会話」など")
         }
-
         .alert("感情記録のヒント", isPresented: $showingFeelingInfo) {
             Button("OK") { }
         } message: {
-            Text("• 始めるのは億劫だったが、終えると気分が良かった\n• 時間の無駄だと感じイライラした\n• ダラダラ過ごしてしまい罪悪感があった\n\n感情を振り返ることで、自分の意外な一面を知ることができます。")
+            Text("感情を詳しく記録することで、自分の気持ちのパターンを理解できます。例：「達成感があった」「少し不安だった」など")
+        }
+
+        .alert("記録を削除", isPresented: $showingDeleteAlert) {
+            Button("削除", role: .destructive) {
+                deleteEntry()
+            }
+            Button("キャンセル", role: .cancel) {}
+        } message: {
+            Text("この記録を削除しますか？")
         }
     }
+    
+    private func loadEntryData() {
+        activityText = entry.activity ?? ""
+        feelingText = entry.feelings ?? ""
 
-    private func timeRangeText() -> String {
-        let formatter = DateFormatter()
-        formatter.timeStyle = .short
-        formatter.locale = Locale(identifier: "ja_JP")
+        // 気分を設定（絵文字と新しい形式の両方に対応）
+        if let moodString = entry.mood {
+            // まず新しい形式（rawValue）で検索
+            if let mood = Mood.allCases.first(where: { $0.rawValue == moodString }) {
+                selectedMood = mood
+            } else {
+                // 絵文字形式の場合は変換
+                selectedMood = Mood.fromEmoji(moodString)
+            }
+        }
 
-        let endTime = entryTime
-        let startTime = Calendar.current.date(byAdding: .minute, value: -30, to: endTime) ?? endTime
-
-        return "\(formatter.string(from: startTime)) - \(formatter.string(from: endTime))"
+        // ジャンルを設定
+        if let genreString = entry.genre {
+            selectedGenre = Genre.allCases.first { $0.rawValue == genreString } ?? .work
+        }
     }
+    
+    private func saveChanges() {
+        entry.activity = activityText
+        entry.feelings = feelingText
+        entry.mood = selectedMood.rawValue
+        entry.genre = selectedGenre.rawValue
 
-    private func saveEntry() {
-        let entry = MindfulnessEntry(
-            timestamp: entryTime,
-            activity: activityText,
-            mood: selectedMood,
-            genre: selectedGenre,
-            feelings: feelingText
-        )
+        do {
+            // 変更をコンテキストに保存
+            try viewContext.save()
 
-        saveToDatabase(entry)
+            // 保存成功のフィードバック
+            let successFeedback = UINotificationFeedbackGenerator()
+            successFeedback.notificationOccurred(.success)
 
-        let successFeedback = UINotificationFeedbackGenerator()
-        successFeedback.notificationOccurred(.success)
+            // メインスレッドで画面を閉じる
+            DispatchQueue.main.async {
+                dismiss()
+            }
+        } catch {
+            print("保存エラー: \(error.localizedDescription)")
 
-        dismiss()
+            // エラーフィードバック
+            let errorFeedback = UINotificationFeedbackGenerator()
+            errorFeedback.notificationOccurred(.error)
+        }
     }
-
-    private func clearForm() {
-        activityText = ""
-        feelingText = ""
-        selectedMood = .neutral
-        selectedGenre = .work
-        entryTime = Date()
-    }
-
-
-    private func saveToDatabase(_ entry: MindfulnessEntry) {
-        let mindfulnessData = MindfulnessData(context: viewContext)
-        mindfulnessData.id = entry.id
-        mindfulnessData.timestamp = entry.timestamp
-        mindfulnessData.activity = entry.activity
-        mindfulnessData.mood = entry.mood.rawValue
-
-        mindfulnessData.genre = entry.genre.rawValue
-
-        mindfulnessData.feelings = entry.feelings
-        mindfulnessData.tags = nil
+    
+    private func deleteEntry() {
+        viewContext.delete(entry)
 
         do {
             try viewContext.save()
-            print("データが正常に保存されました")
+
+            // 削除成功のフィードバック
+            let successFeedback = UINotificationFeedbackGenerator()
+            successFeedback.notificationOccurred(.success)
+
+            // メインスレッドで画面を閉じる
+            DispatchQueue.main.async {
+                dismiss()
+            }
         } catch {
-            print("保存エラー: \(error.localizedDescription)")
+            print("削除エラー: \(error.localizedDescription)")
+
+            // エラーフィードバック
+            let errorFeedback = UINotificationFeedbackGenerator()
+            errorFeedback.notificationOccurred(.error)
         }
-    }
-}
-
-
-
-// プレビュー
-struct MindfulnessEntryView_Previews: PreviewProvider {
-    static var previews: some View {
-        MindfulnessEntryView()
     }
 }

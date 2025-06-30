@@ -53,5 +53,11 @@ struct PersistenceController {
         
         // 自動マージを有効にする（バックグラウンドでの変更を自動的に反映）
         container.viewContext.automaticallyMergesChangesFromParent = true
+
+        // リアルタイム更新のための設定
+        container.viewContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
+
+        // 変更通知を有効にする
+        container.viewContext.stalenessInterval = 0
     }
 }

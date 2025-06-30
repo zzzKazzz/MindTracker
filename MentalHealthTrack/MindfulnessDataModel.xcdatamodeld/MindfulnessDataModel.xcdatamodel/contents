@@ -3,8 +3,10 @@
     <entity name="MindfulnessData" representedClassName="MindfulnessData" syncable="YES" codeGenerationType="class">
         <attribute name="activity" optional="YES" attributeType="String"/>
         <attribute name="feelings" optional="YES" attributeType="String"/>
+        <attribute name="genre" optional="YES" attributeType="String"/>
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="mood" optional="YES" attributeType="String"/>
+        <attribute name="tags" optional="YES" attributeType="String"/>
         <attribute name="timestamp" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
     </entity>
 </model>
