@@ -46,7 +46,7 @@ struct MindfulnessEntryView: View {
                                 )
                                 .frame(width: 12, height: 12)
 
-                            Text("マインドフルネス・ジャーナル")
+                            Text("🧘‍♂️マインド・ジャーナル")
                                 .font(.title2)
                                 .fontWeight(.medium)
                                 .foregroundColor(.primary)
@@ -141,7 +141,7 @@ struct MindfulnessEntryView: View {
                                 Image(systemName: "clock.fill")
                                     .foregroundColor(.blue)
                                     .font(.title3)
-                                Text("していたこと")
+                                Text("活動")
                                     .font(.headline)
                                     .fontWeight(.semibold)
                                 Spacer()
