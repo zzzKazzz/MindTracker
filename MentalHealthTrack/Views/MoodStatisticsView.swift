@@ -35,6 +35,8 @@ struct MoodStatisticsView: View {
             }
             .padding()
         }
+        .navigationTitle("My統計")
+        .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             viewModel.updateStatistics(entries: Array(entries))
         }

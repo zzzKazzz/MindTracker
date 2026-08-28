@@ -57,84 +57,73 @@ class NotificationManager: ObservableObject {
         scheduleIntervalNotifications(startTime: startTime, endTime: endTime, interval: actualInterval, selectedWeekdays: selectedWeekdays)
     }
     
+    // iOSのpending通知は64件が上限のため、リピート通知ではなく
+    // 「これから来る枠」を具体的な日時で最大60件だけ張り、起動/復帰のたびに張り直す
     func scheduleIntervalNotifications(startTime: Date, endTime: Date, interval: Int, selectedWeekdays: Set<Int>? = nil) {
-        // 既存の通知をクリア
         cancelNotifications()
-        
+
         let calendar = Calendar.current
-        let startHour = calendar.component(.hour, from: startTime)
-        let startMinute = calendar.component(.minute, from: startTime)
-        let endHour = calendar.component(.hour, from: endTime)
-        let endMinute = calendar.component(.minute, from: endTime)
-        
-        let startMinutes = startHour * 60 + startMinute
-        let endMinutes = endHour * 60 + endMinute
-        
-        var currentMinutes = startMinutes
-        var notificationCount = 0
-        
-        while currentMinutes <= endMinutes {
-            let hour = currentMinutes / 60
-            let minute = currentMinutes % 60
-            
-            // 12:01〜13:00の間は通知をスキップ（12:00ぴったりは含まない）
-            if !((hour == 12 && minute > 0) || (hour == 13 && minute == 0)) {
-                if let weekdays = selectedWeekdays {
-                    // 選択された曜日のみ通知をスケジュール
-                    for weekday in weekdays {
-                        scheduleNotification(
-                            identifier: "intervalNotification_\(notificationCount)_\(weekday)",
-                            hour: hour,
-                            minute: minute,
-                            weekday: weekday,
-                            title: "気持ちの記録",
-                            body: getNotificationMessage(for: hour)
-                        )
-                    }
-                } else {
-                    // 曜日指定がない場合は毎日通知
-                    scheduleNotification(
-                        identifier: "intervalNotification_\(notificationCount)",
-                        hour: hour,
-                        minute: minute,
-                        weekday: nil,
-                        title: "気持ちの記録",
-                        body: getNotificationMessage(for: hour)
-                    )
+        let startMinutes = calendar.component(.hour, from: startTime) * 60 + calendar.component(.minute, from: startTime)
+        let endMinutes = calendar.component(.hour, from: endTime) * 60 + calendar.component(.minute, from: endTime)
+        let now = Date()
+
+        var slots: [Date] = []
+        for dayOffset in 0..<14 {
+            guard let day = calendar.date(byAdding: .day, value: dayOffset, to: calendar.startOfDay(for: now)) else { continue }
+            let weekday = calendar.component(.weekday, from: day)
+            if let weekdays = selectedWeekdays, !weekdays.contains(weekday) { continue }
+
+            var currentMinutes = startMinutes
+            while currentMinutes <= endMinutes {
+                let hour = currentMinutes / 60
+                let minute = currentMinutes % 60
+
+                // 12:01〜13:00の間は通知をスキップ（12:00ぴったりは含まない）
+                if !((hour == 12 && minute > 0) || (hour == 13 && minute == 0)),
+                   let fireDate = calendar.date(bySettingHour: hour, minute: minute, second: 0, of: day),
+                   fireDate > now {
+                    slots.append(fireDate)
                 }
-                notificationCount += 1
+                currentMinutes += interval
             }
-            
-            currentMinutes += interval
         }
-        
+
+        slots.sort()
+        for (index, fireDate) in slots.prefix(60).enumerated() {
+            scheduleSlotNotification(index: index, fireDate: fireDate, interval: interval)
+        }
+
         // スケジュール結果を確認
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             self.printScheduledNotifications()
         }
     }
-    
-    private func scheduleNotification(identifier: String, hour: Int, minute: Int, weekday: Int?, title: String, body: String) {
+
+    private func scheduleSlotNotification(index: Int, fireDate: Date, interval: Int) {
+        let calendar = Calendar.current
+        let hour = calendar.component(.hour, from: fireDate)
+
         let content = UNMutableNotificationContent()
-        content.title = title
-        content.body = body
+        content.title = "気持ちの記録"
+        content.body = getNotificationMessage(for: hour)
         content.sound = .default
         content.badge = 1
-        content.userInfo = ["type": "mindfulness"]
-        
-        var dateComponents = DateComponents()
-        dateComponents.hour = hour
-        dateComponents.minute = minute
-        if let weekday = weekday {
-            dateComponents.weekday = weekday
-        }
-        
-        let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: true)
-        let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
-        
+
+        // 「この枠（slotStart〜slotEnd）どうだった？」を記録画面に渡す
+        let slotStart = fireDate.addingTimeInterval(TimeInterval(-interval * 60))
+        content.userInfo = [
+            "type": "mindfulness",
+            "slotStart": slotStart.timeIntervalSince1970,
+            "slotEnd": fireDate.timeIntervalSince1970
+        ]
+
+        let components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: fireDate)
+        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+        let request = UNNotificationRequest(identifier: "intervalNotification_\(index)", content: content, trigger: trigger)
+
         UNUserNotificationCenter.current().add(request) { error in
             if let error = error {
-                print("通知スケジュールエラー (\(hour):\(String(format: "%02d", minute))): \(error)")
+                print("通知スケジュールエラー (\(fireDate)): \(error)")
             }
         }
     }

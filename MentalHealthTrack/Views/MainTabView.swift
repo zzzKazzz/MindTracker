@@ -3,45 +3,26 @@ import SwiftUI
 struct MainTabView: View {
     var body: some View {
         TabView {
-            // ホームタブ（現在のContentView）
-            HomeTabView()
-                .tabItem {
-                    Image(systemName: "house.fill")
-                    Text("ホーム")
-                }
-                .tag(0)
-
-            // 購入履歴タブ
-            PurchaseHistoryTabView()
-                .tabItem {
-                    Image(systemName: "cart")
-                    Text("購入履歴")
-                }
-                .tag(1)
-
-            // カレンダータブ
             CalendarTabView()
                 .tabItem {
                     Image(systemName: "calendar")
                     Text("カレンダー")
                 }
-                .tag(2)
+                .tag(0)
 
-            // My統計タブ
-            MoodClockTabView()
+            MyStatsView()
                 .tabItem {
-                    Image(systemName: "clock")
-                    Text("My統計")
+                    Image(systemName: "chart.bar.fill")
+                    Text("MyStats")
                 }
-                .tag(3)
+                .tag(1)
 
-            // 設定タブ
             SettingsTabView()
                 .tabItem {
                     Image(systemName: "gearshape.fill")
                     Text("設定")
                 }
-                .tag(4)
+                .tag(2)
         }
         .accentColor(.blue)
     }

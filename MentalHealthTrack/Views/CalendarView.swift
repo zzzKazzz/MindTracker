@@ -3,14 +3,13 @@ import SwiftUI
 
 struct CalendarView: View {
     let entries: [MindfulnessData]
+    let displayedMonth: Date
+    var selectedDate: Date? = nil
     let onDateSelected: (Date) -> Void
+    var showsNavigationHeader: Bool = false
+    var showsLegend: Bool = false
+    var onMonthChange: ((Date) -> Void)? = nil
 
-    @Environment(\.presentationMode) var presentationMode
-    @State private var selectedMonth = Date()
-    @State private var selectedDate: Date?
-    @State private var dragOffset = CGSize.zero
-
-    private let calendar = Calendar.current
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy年M月"
@@ -19,47 +18,46 @@ struct CalendarView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // 月選択ヘッダー
-            MonthNavigationHeader(
-                selectedMonth: $selectedMonth,
-                dateFormatter: dateFormatter
-            )
+            if showsNavigationHeader {
+                MonthNavigationHeader(
+                    displayedMonth: displayedMonth,
+                    dateFormatter: dateFormatter,
+                    onMonthChange: { newMonth in
+                        onMonthChange?(newMonth)
+                    }
+                )
+            }
 
-            // 曜日ヘッダー
             WeekdayHeader()
 
-            // カレンダーグリッド
             CalendarGrid(
-                selectedMonth: selectedMonth,
+                selectedMonth: displayedMonth,
                 entries: entries,
                 selectedDate: selectedDate,
-                onDateTapped: { date in
-                    selectedDate = date
-                    onDateSelected(date)
-                }
+                onDateTapped: onDateSelected
             )
 
-            Spacer()
+            if showsLegend {
+                CalendarLegend()
+            }
 
-            // 凡例
-            CalendarLegend()
+            Spacer(minLength: 0)
         }
-        .offset(y: dragOffset.height)
-        .animation(.interactiveSpring(), value: dragOffset)
     }
 }
 
 // MARK: - Components
 struct MonthNavigationHeader: View {
-    @Binding var selectedMonth: Date
+    let displayedMonth: Date
     let dateFormatter: DateFormatter
+    let onMonthChange: (Date) -> Void
 
     var body: some View {
         HStack {
             Button(action: {
-                selectedMonth =
-                    Calendar.current.date(byAdding: .month, value: -1, to: selectedMonth)
-                    ?? selectedMonth
+                let next = Calendar.current.date(byAdding: .month, value: -1, to: displayedMonth)
+                    ?? displayedMonth
+                onMonthChange(next)
             }) {
                 Image(systemName: "chevron.left")
                     .font(.title2)
@@ -68,16 +66,16 @@ struct MonthNavigationHeader: View {
 
             Spacer()
 
-            Text(dateFormatter.string(from: selectedMonth))
+            Text(dateFormatter.string(from: displayedMonth))
                 .font(.title2)
                 .fontWeight(.semibold)
 
             Spacer()
 
             Button(action: {
-                selectedMonth =
-                    Calendar.current.date(byAdding: .month, value: 1, to: selectedMonth)
-                    ?? selectedMonth
+                let next = Calendar.current.date(byAdding: .month, value: 1, to: displayedMonth)
+                    ?? displayedMonth
+                onMonthChange(next)
             }) {
                 Image(systemName: "chevron.right")
                     .font(.title2)
@@ -224,6 +222,6 @@ struct LegendItem: View {
 // MARK: - Preview
 struct CalendarView_Previews: PreviewProvider {
     static var previews: some View {
-        CalendarView(entries: []) { _ in }
+        CalendarView(entries: [], displayedMonth: Date()) { _ in }
     }
 }

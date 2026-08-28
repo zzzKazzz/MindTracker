@@ -39,10 +39,15 @@ struct PersistenceController {
         // ⚠️ 重要：ここの名前は MindfulnessDataModel.xcdatamodeld のファイル名と一致させる
         container = NSPersistentContainer(name: "MindfulnessDataModel")
         
-        if inMemory {
-            container.persistentStoreDescriptions.first!.url = URL(fileURLWithPath: "/dev/null")
+        if let description = container.persistentStoreDescriptions.first {
+            if inMemory {
+                description.url = URL(fileURLWithPath: "/dev/null")
+            }
+            // エンティティ追加時に既存ストアを落とさない
+            description.shouldMigrateStoreAutomatically = true
+            description.shouldInferMappingModelAutomatically = true
         }
-        
+
         // Core Dataストアを読み込み
         container.loadPersistentStores(completionHandler: { (storeDescription, error) in
             if let error = error as NSError? {

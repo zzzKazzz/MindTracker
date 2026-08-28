@@ -47,6 +47,8 @@ struct SettingsView: View {
                 notificationPreviewSection
             }
 
+            extrasSection
+
             aboutSection
         }
         .presentationDragIndicator(.visible)
@@ -194,6 +196,17 @@ struct SettingsView: View {
         }
         .onAppear {
             updateNotificationSchedule()
+        }
+    }
+
+    private var extrasSection: some View {
+        Section(header: Text("追加機能"), footer: Text("購入と視聴の自動取得は、公開APIがなく今は手動です。メール貼り付け・スクショ・Takeout取り込みは使えます。Gmail連携・カード明細・マネフォ・Screen Time は後回しです。")) {
+            NavigationLink(destination: PurchaseHistoryView().navigationTitle("購入履歴")) {
+                Label("購入履歴", systemImage: "cart")
+            }
+            NavigationLink(destination: WatchHistoryView().navigationTitle("視聴の無意識")) {
+                Label("視聴の無意識", systemImage: "play.rectangle")
+            }
         }
     }
 

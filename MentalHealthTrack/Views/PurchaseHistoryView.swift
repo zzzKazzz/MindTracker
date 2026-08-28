@@ -1,108 +1,224 @@
 import SwiftUI
 import PhotosUI
 import Vision
+import CoreData
+import UIKit
 
 struct PurchaseHistoryView: View {
+    @Environment(\.managedObjectContext) private var viewContext
+    @FetchRequest(
+        sortDescriptors: [NSSortDescriptor(keyPath: \PurchaseRecord.purchasedAt, ascending: false)],
+        animation: .default)
+    private var records: FetchedResults<PurchaseRecord>
+
     @State private var showingImagePicker = false
     @State private var selectedImage: UIImage?
     @State private var showingPurchaseEntry = false
+    @State private var showingEmailImport = false
 
     var body: some View {
-                ScrollView {
-                    VStack(spacing: 20) {
-                        // 画像アップロード機能
-                        VStack(spacing: 16) {
-                            Text("購入履歴をアップロード")
-                                .font(.headline)
-                                .fontWeight(.semibold)
-
-                            // フォトライブラリから選択
-                            Button(action: { showingImagePicker = true }) {
-                                VStack(spacing: 8) {
-                                    Image(systemName: "photo.on.rectangle")
-                                        .font(.title2)
-                                        .foregroundColor(.blue)
-                                    Text("購入履歴のスクリーンショットを選択")
-                                        .font(.subheadline)
-                                        .foregroundColor(.blue)
-                                        .multilineTextAlignment(.center)
-                                }
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 20)
-                                .background(Color.blue.opacity(0.1))
-                                .cornerRadius(12)
+        ScrollView {
+            VStack(spacing: 20) {
+                // 取り込み入口
+                VStack(spacing: 12) {
+                    Button(action: { showingEmailImport = true }) {
+                        HStack(spacing: 12) {
+                            Image(systemName: "envelope.badge")
+                                .font(.title3)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("メールから取り込み")
+                                    .font(.headline)
+                                Text("注文確認メールを貼り付け / .emlファイル")
+                                    .font(.caption)
+                                    .opacity(0.8)
                             }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
                         }
-                        .padding(.horizontal, 20)
+                        .padding(16)
+                        .background(Color.blue)
+                        .foregroundColor(.white)
+                        .cornerRadius(12)
+                    }
 
-                        Divider()
-                            .padding(.horizontal, 20)
+                    Button(action: { showingImagePicker = true }) {
+                        HStack(spacing: 12) {
+                            Image(systemName: "photo.on.rectangle")
+                                .font(.title3)
+                                .foregroundColor(.blue)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("スクリーンショットから取り込み")
+                                    .font(.headline)
+                                    .foregroundColor(.primary)
+                                Text("購入履歴画面のスクショをOCRで解析")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(16)
+                        .background(Color.blue.opacity(0.1))
+                        .cornerRadius(12)
+                    }
+                }
+                .padding(.horizontal, 20)
 
-                        // 購入履歴サイトのリスト
-                        Text("外部サイトで確認")
+                // 保存済みの購入一覧
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Text("保存済みの購入")
                             .font(.headline)
                             .fontWeight(.semibold)
-                                                // 注意事項
-                        VStack(spacing: 8) {
-                            HStack {
-                                Image(systemName: "info.circle")
-                                    .foregroundColor(.blue)
-                                Text("ご利用について")
-                                    .font(.headline)
-                                    .fontWeight(.semibold)
-                            }
+                        Spacer()
+                        Text("\(records.count)件")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
 
-                            Text("各サイトにログインが必要です。\nブラウザで購入履歴ページが開きます。")
+                    if records.isEmpty {
+                        VStack(spacing: 8) {
+                            Image(systemName: "cart")
+                                .font(.title)
+                                .foregroundColor(.secondary)
+                            Text("まだ購入記録がありません。\nメールかスクショから取り込みましょう。")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                                 .multilineTextAlignment(.center)
                         }
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, 20)
-                        VStack(spacing: 16) {
-                            // Amazon
-                            PurchaseHistoryButton(
-                                title: "Amazon",
-                                subtitle: "Amazonでの購入履歴を確認",
-                                iconName: "bag.fill",
-                                iconColor: .orange,
-                                url: "https://www.amazon.co.jp/gp/your-account/order-history"
-                            )
-
-                            // 楽天市場
-                            PurchaseHistoryButton(
-                                title: "楽天市場",
-                                subtitle: "楽天市場での購入履歴を確認",
-                                iconName: "bag.fill",
-                                iconColor: .red,
-                                url: "https://order.my.rakuten.co.jp/"
-                            )
-
-                            // Yahoo!ショッピング（追加オプション）
-                            PurchaseHistoryButton(
-                                title: "Yahoo!ショッピング",
-                                subtitle: "Yahoo!ショッピングでの購入履歴を確認",
-                                iconName: "bag.fill",
-                                iconColor: .purple,
-                                url: "https://order.shopping.yahoo.co.jp/"
-                            )
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 32)
+                    } else {
+                        ForEach(records) { record in
+                            PurchaseRecordRow(record: record) {
+                                deleteRecord(record)
+                            }
                         }
-                        .padding(.horizontal, 20)
                     }
                 }
+                .padding(.horizontal, 20)
+
+                // 外部サイトリンク（補助）
+                DisclosureGroup {
+                    VStack(spacing: 12) {
+                        PurchaseHistoryButton(
+                            title: "Amazon",
+                            subtitle: "Amazonでの購入履歴を確認",
+                            iconName: "bag.fill",
+                            iconColor: .orange,
+                            url: "https://www.amazon.co.jp/gp/your-account/order-history"
+                        )
+                        PurchaseHistoryButton(
+                            title: "楽天市場",
+                            subtitle: "楽天市場での購入履歴を確認",
+                            iconName: "bag.fill",
+                            iconColor: .red,
+                            url: "https://order.my.rakuten.co.jp/"
+                        )
+                        PurchaseHistoryButton(
+                            title: "Yahoo!ショッピング",
+                            subtitle: "Yahoo!ショッピングでの購入履歴を確認",
+                            iconName: "bag.fill",
+                            iconColor: .purple,
+                            url: "https://order.shopping.yahoo.co.jp/"
+                        )
+                    }
+                    .padding(.top, 8)
+                } label: {
+                    Text("外部サイトで購入履歴を確認")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 20)
+            }
+            .padding(.top, 8)
+        }
         .sheet(isPresented: $showingImagePicker) {
             ImagePicker(selectedImage: $selectedImage, sourceType: .photoLibrary)
         }
         .sheet(isPresented: $showingPurchaseEntry) {
             if let image = selectedImage {
                 PurchaseEntryView(image: image)
+                    .environment(\.managedObjectContext, viewContext)
             }
+        }
+        .sheet(isPresented: $showingEmailImport) {
+            PurchaseImportView()
+                .environment(\.managedObjectContext, viewContext)
         }
         .onChange(of: selectedImage) { oldValue, newValue in
             if newValue != nil {
                 showingPurchaseEntry = true
             }
         }
+    }
+
+    private func deleteRecord(_ record: PurchaseRecord) {
+        viewContext.delete(record)
+        try? viewContext.save()
+    }
+}
+
+// MARK: - PurchaseRecordRow
+struct PurchaseRecordRow: View {
+    let record: PurchaseRecord
+    let onDelete: () -> Void
+
+    private static let dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy/M/d"
+        formatter.locale = Locale(identifier: "ja_JP")
+        return formatter
+    }()
+
+    var body: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(record.name ?? "不明な商品")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .lineLimit(2)
+
+                HStack(spacing: 8) {
+                    Text(record.category ?? "その他")
+                        .font(.caption2)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.blue.opacity(0.1))
+                        .foregroundColor(.blue)
+                        .cornerRadius(4)
+
+                    Text(record.merchant ?? "")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+
+                    if let date = record.purchasedAt {
+                        Text(Self.dateFormatter.string(from: date))
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+
+            Spacer()
+
+            Text("¥\(Int(record.price))")
+                .font(.subheadline)
+                .fontWeight(.semibold)
+
+            Button(action: onDelete) {
+                Image(systemName: "trash")
+                    .font(.caption)
+                    .foregroundColor(.red.opacity(0.7))
+            }
+        }
+        .padding(12)
+        .background(Color(UIColor.systemGray6))
+        .cornerRadius(12)
     }
 }
 
@@ -212,6 +328,8 @@ struct DetectedProduct: Identifiable {
 struct PurchaseEntryView: View {
     let image: UIImage
 
+    @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.dismiss) private var dismiss
     @State private var detectedProducts: [DetectedProduct] = []
     @State private var isProcessingOCR = false
     @State private var extractedText = ""
@@ -804,18 +922,27 @@ struct PurchaseEntryView: View {
     }
 
     private func saveAllPurchaseRecords() {
-        // TODO: Core Dataに保存する処理を実装
-        print("全ての購入記録を保存:")
-        for (index, product) in detectedProducts.enumerated() {
-            print("商品\(index + 1):")
-            print("  商品名: \(product.name)")
-            print("  価格: \(product.price)")
-            print("  カテゴリ: \(product.category)")
-            print("  購入理由: \(product.purchaseReason)")
-            print("  気分: \(product.mood)")
+        for product in detectedProducts {
+            let record = PurchaseRecord(context: viewContext)
+            record.id = UUID()
+            record.name = product.name
+            record.price = Double(product.price.replacingOccurrences(of: ",", with: "")) ?? 0
+            record.category = product.category
+            record.merchant = "スクリーンショット"
+            record.purchasedAt = Date()
+            record.reason = product.purchaseReason
+            record.mood = product.mood
+            record.sourceRaw = nil
         }
 
-        // TODO: 保存完了後の処理
+        do {
+            try viewContext.save()
+            let feedback = UINotificationFeedbackGenerator()
+            feedback.notificationOccurred(.success)
+            dismiss()
+        } catch {
+            print("購入記録の保存エラー: \(error.localizedDescription)")
+        }
     }
 }
 

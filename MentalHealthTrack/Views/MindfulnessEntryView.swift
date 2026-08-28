@@ -6,15 +6,33 @@ struct MindfulnessEntryView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
     @StateObject private var keyboard = KeyboardResponder()
+    @AppStorage("notificationInterval") private var notificationInterval = 60
     @State private var activityText: String = ""
     @State private var feelingText: String = ""
     @State private var selectedMood: Mood = .neutral
     @State private var selectedGenre: Genre = .work
-    @State private var entryTime = Date()
+    @State private var entryTime: Date
     @State private var showingActivityInfo = false
     @State private var showingFeelingInfo = false
 
+    // 通知タップ経由のときの記録対象スロット
+    let slotStart: Date?
+    let slotEnd: Date?
 
+    init(slotStart: Date? = nil, slotEnd: Date? = nil) {
+        self.slotStart = slotStart
+        self.slotEnd = slotEnd
+        self._entryTime = State(initialValue: slotEnd ?? Date())
+    }
+
+    // 設定された通知間隔に応じた表現（30分 / 1時間 / 2時間）
+    private var intervalLabel: String {
+        switch notificationInterval {
+        case ..<60: return "\(notificationInterval)分間"
+        case 60: return "1時間"
+        default: return "\(notificationInterval / 60)時間"
+        }
+    }
 
     var body: some View {
         NavigationView {
@@ -46,13 +64,13 @@ struct MindfulnessEntryView: View {
                                 )
                                 .frame(width: 12, height: 12)
 
-                            Text("マインドフルネス・ジャーナル")
+                            Text(slotEnd == nil ? "マインドフルネス・ジャーナル" : "この時間はどうだった？")
                                 .font(.title2)
                                 .fontWeight(.medium)
                                 .foregroundColor(.primary)
                         }
 
-                        Text("今の気持ちを記録してみましょう")
+                        Text(slotEnd == nil ? "今の気持ちを記録してみましょう" : "この\(intervalLabel)の気分を記録しましょう")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
 
@@ -86,7 +104,7 @@ struct MindfulnessEntryView: View {
                             }
 
                             VStack(alignment: .leading, spacing: 12) {
-                                Text("この30分間は何に使いましたか？")
+                                Text("この\(intervalLabel)は何に使いましたか？")
                                     .font(.subheadline)
                                     .foregroundColor(.secondary)
 
@@ -141,7 +159,7 @@ struct MindfulnessEntryView: View {
                                 Image(systemName: "clock.fill")
                                     .foregroundColor(.blue)
                                     .font(.title3)
-                                Text("この30分間の活動")
+                                Text("この\(intervalLabel)の活動")
                                     .font(.headline)
                                     .fontWeight(.semibold)
                                 Spacer()
@@ -281,7 +299,7 @@ struct MindfulnessEntryView: View {
                             }
                         }
 
-                        // 保存ボタン
+                        // 保存ボタン（気分とジャンルだけでも保存できる。文章は任意）
                         Button(action: saveEntry) {
                             HStack(spacing: 12) {
                                 Image(systemName: "checkmark.circle.fill")
@@ -294,12 +312,7 @@ struct MindfulnessEntryView: View {
                             .padding(.vertical, 18)
                             .background(
                                 LinearGradient(
-                                    gradient: Gradient(colors: [
-                                        activityText.isEmpty || feelingText.isEmpty
-                                            ? Color.gray.opacity(0.6) : Color.blue,
-                                        activityText.isEmpty || feelingText.isEmpty
-                                            ? Color.gray.opacity(0.4) : Color.blue.opacity(0.8),
-                                    ]),
+                                    gradient: Gradient(colors: [Color.blue, Color.blue.opacity(0.8)]),
                                     startPoint: .leading,
                                     endPoint: .trailing
                                 )
@@ -307,12 +320,7 @@ struct MindfulnessEntryView: View {
                             .foregroundColor(.white)
                             .cornerRadius(16)
                             .shadow(color: Color.blue.opacity(0.3), radius: 8, x: 0, y: 4)
-                            .scaleEffect(activityText.isEmpty || feelingText.isEmpty ? 0.98 : 1.0)
-                            .animation(
-                                .easeInOut(duration: 0.2),
-                                value: activityText.isEmpty || feelingText.isEmpty)
                         }
-                        .disabled(activityText.isEmpty || feelingText.isEmpty)
                     }
                     .padding(.horizontal)
                     .padding(.bottom, 32)
@@ -367,8 +375,11 @@ struct MindfulnessEntryView: View {
         formatter.timeStyle = .short
         formatter.locale = Locale(identifier: "ja_JP")
 
-        let endTime = entryTime
-        let startTime = Calendar.current.date(byAdding: .minute, value: -30, to: endTime) ?? endTime
+        // 通知タップ経由ならそのスロット、手動なら設定間隔ぶん遡る
+        let endTime = slotEnd ?? entryTime
+        let startTime = slotStart
+            ?? Calendar.current.date(byAdding: .minute, value: -notificationInterval, to: endTime)
+            ?? endTime
 
         return "\(formatter.string(from: startTime)) - \(formatter.string(from: endTime))"
     }

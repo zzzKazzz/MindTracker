@@ -9,6 +9,7 @@ struct DateEntriesView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @State private var showingDeleteAlert = false
     @State private var entryToDelete: MindfulnessData?
+    @State private var entryToEdit: MindfulnessData?
     
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -29,6 +30,9 @@ struct DateEntriesView: View {
                 } else {
                     DateEntriesListView(
                         entries: entries,
+                        onSelect: { entry in
+                            entryToEdit = entry
+                        },
                         onDelete: { entry in
                             entryToDelete = entry
                             showingDeleteAlert = true
@@ -45,6 +49,10 @@ struct DateEntriesView: View {
                     }
                 }
             }
+        }
+        .sheet(item: $entryToEdit) { entry in
+            MindfulnessEditView(entry: entry)
+                .environment(\.managedObjectContext, viewContext)
         }
         .alert("記録を削除", isPresented: $showingDeleteAlert) {
             Button("削除", role: .destructive) {
@@ -129,13 +137,14 @@ struct EmptyDateEntriesView: View {
 
 struct DateEntriesListView: View {
     let entries: [MindfulnessData]
+    let onSelect: (MindfulnessData) -> Void
     let onDelete: (MindfulnessData) -> Void
     
     var body: some View {
         ScrollView {
             LazyVStack(spacing: 12) {
                 ForEach(sortedEntries, id: \.objectID) { entry in
-                    DateEntryCardView(entry: entry, onDelete: onDelete)
+                    DateEntryCardView(entry: entry, onSelect: { onSelect(entry) }, onDelete: onDelete)
                 }
             }
             .padding()
@@ -153,6 +162,7 @@ struct DateEntriesListView: View {
 
 struct DateEntryCardView: View {
     let entry: MindfulnessData
+    var onSelect: (() -> Void)? = nil
     let onDelete: (MindfulnessData) -> Void
     
     @State private var showingFullText = false
@@ -177,7 +187,6 @@ struct DateEntryCardView: View {
                 
                 Spacer()
                 
-                // 削除ボタン
                 Button(action: {
                     onDelete(entry)
                 }) {
@@ -234,6 +243,10 @@ struct DateEntryCardView: View {
         .background(Color(UIColor.systemBackground))
         .cornerRadius(12)
         .shadow(color: Color.black.opacity(0.1), radius: 2, x: 0, y: 1)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            onSelect?()
+        }
     }
 }
 

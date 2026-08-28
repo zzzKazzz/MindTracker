@@ -108,9 +108,15 @@ struct HomeTabView: View {
                 }
             }
         }
-        .sheet(isPresented: $showingEntryView) {
-            MindfulnessEntryView()
-                .environment(\.managedObjectContext, viewContext)
+        .sheet(isPresented: $showingEntryView, onDismiss: {
+            appState.entrySlotStart = nil
+            appState.entrySlotEnd = nil
+        }) {
+            MindfulnessEntryView(
+                slotStart: appState.entrySlotStart,
+                slotEnd: appState.entrySlotEnd
+            )
+            .environment(\.managedObjectContext, viewContext)
         }
         .alert("データエクスポート完了", isPresented: $showingExportAlert) {
             Button("OK") { }

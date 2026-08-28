@@ -3,42 +3,88 @@ import CoreData
 
 struct CalendarTabView: View {
     @Environment(\.managedObjectContext) private var viewContext
-    
-    // CoreDataからMindfulnessDataを取得
+    @EnvironmentObject private var appState: AppState
+
     @FetchRequest(
         sortDescriptors: [NSSortDescriptor(keyPath: \MindfulnessData.timestamp, ascending: false)],
         animation: .default)
     private var entries: FetchedResults<MindfulnessData>
-    
-    // 選択された日付の記録一覧画面の表示状態を管理
+
+    @State private var focusedDate = Date()
+    @State private var scope: CalendarScope = .week
     @State private var showingDateEntries = false
-    @State private var selectedDate: Date? = nil
-    
+    @State private var selectedDate: Date?
+    @State private var showingEntryView = false
+    @State private var entryToEdit: MindfulnessData?
+
     var body: some View {
         NavigationView {
-            CalendarView(entries: Array(entries)) { date in
-                selectedDate = date
-                showingDateEntries = true
+            VStack(spacing: 0) {
+                CalendarHubView(
+                    entries: Array(entries),
+                    focusedDate: $focusedDate,
+                    scope: $scope,
+                    onSelectDate: { date in
+                        selectedDate = date
+                        showingDateEntries = true
+                    },
+                    onSelectEntry: { entry in
+                        entryToEdit = entry
+                    },
+                    onSelectEmptySlot: { start, end in
+                        appState.entrySlotStart = start
+                        appState.entrySlotEnd = end
+                        showingEntryView = true
+                    }
+                )
+
+                RecordButtonView {
+                    appState.entrySlotStart = nil
+                    appState.entrySlotEnd = nil
+                    showingEntryView = true
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
             }
             .navigationTitle("カレンダー")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.inline)
         }
         .sheet(isPresented: $showingDateEntries) {
-            if let selectedDate = selectedDate {
+            if let selectedDate {
                 DateEntriesView(
                     date: selectedDate,
-                    entries: entriesForDate(selectedDate)
+                    entries: MindfulnessDataHelper.entriesForDate(selectedDate, from: Array(entries))
                 )
+                .environment(\.managedObjectContext, viewContext)
             }
         }
-    }
-    
-    private func entriesForDate(_ date: Date) -> [MindfulnessData] {
-        return MindfulnessDataHelper.entriesForDate(date, from: Array(entries))
+        .sheet(item: $entryToEdit) { entry in
+            MindfulnessEditView(entry: entry)
+                .environment(\.managedObjectContext, viewContext)
+        }
+        .sheet(isPresented: $showingEntryView, onDismiss: {
+            appState.entrySlotStart = nil
+            appState.entrySlotEnd = nil
+        }) {
+            MindfulnessEntryView(
+                slotStart: appState.entrySlotStart,
+                slotEnd: appState.entrySlotEnd
+            )
+            .environment(\.managedObjectContext, viewContext)
+        }
+        .onChange(of: appState.shouldShowEntryView) { _, newValue in
+            if newValue {
+                showingEntryView = true
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    appState.shouldShowEntryView = false
+                }
+            }
+        }
     }
 }
 
 #Preview {
     CalendarTabView()
         .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
+        .environmentObject(AppState())
 }
