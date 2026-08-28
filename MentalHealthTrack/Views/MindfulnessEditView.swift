@@ -107,7 +107,7 @@ struct MindfulnessEditView: View {
                                 Image(systemName: "clock.fill")
                                     .foregroundColor(.blue)
                                     .font(.title3)
-                                Text("この30分間の活動")
+                                Text("活動")
                                     .font(.headline)
                                     .fontWeight(.semibold)
                                 Spacer()
